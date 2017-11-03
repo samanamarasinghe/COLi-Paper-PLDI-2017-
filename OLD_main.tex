@@ -1,0 +1,277 @@
+\documentclass[preprint,10pt,numbers]{sigplanconf}
+
+% The following \documentclass options may be useful:
+
+% preprint      Remove this option only once the paper is in final form.
+% 10pt          To set in 10-point type instead of 9-point.
+% 11pt          To set in 11-point type instead of 9-point.
+% numbers       To obtain numeric citation style instead of author/year.
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{listings}
+\usepackage{color}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{xspace}
+\usepackage{comment}
+\usepackage{graphicx} 
+\usepackage{inconsolata}
+\usepackage{appendix}
+\usepackage{wrapfig}
+\usepackage{multirow}
+\usepackage{bm}
+\usepackage{microtype}
+
+\definecolor{listinggreen}{rgb}{0,0.6,0}
+\definecolor{listinggray}{rgb}{0.5,0.5,0.5}
+\definecolor{listingmauve}{rgb}{0.58,0,0.82}
+\definecolor{listingkeywordcolor}{rgb}{1.0,0.4,0.0}
+\definecolor{listinglightgray}{rgb}{0.8863,0.8863,0.8863}
+
+\newcommand\layeronecolor{blue}
+
+\newcommand\TODO[1]{{\color{red}\textbf{TODO: }#1}}
+\newcommand\TOSAY[1]{{\color{black}\textbf{We Should Say That: }#1}}
+\newcommand\COMMENT[1]{}
+\newcommand\framework{\textsc{Tiramisu}\xspace}
+\newcommand\processor{processor\xspace}
+\newcommand\Processor{Processor\xspace}
+\newcommand\layerone{abstract computation layer\xspace}
+\newcommand\Layerone{Abstract Computation Layer\xspace}
+\newcommand\layertwo{computation placement layer\xspace}
+\newcommand\Layertwo{Computation Placement Layer\xspace}
+\newcommand\layerthree{concrete computation layer\xspace}
+\newcommand\Layerthree{Concrete Computation Layer\xspace}
+%\newcommand\id[2]{{\color{Red} #1} : {\color{black} #2}}
+%\newcommand\tsd[2]{{\color{Red} #1} : {\color{black} #2}}
+%\newcommand\data[1]{{\color{PineGreen} #1}}
+\newcommand{\pgrammar}[1]{\text{\sf\textless#1\textgreater}}
+
+\newcommand\codeone{(a)\xspace}
+\newcommand\codeonebis{(b)\xspace}
+\newcommand\codetwo{(c)\xspace}
+\newcommand\codethree{(d)\xspace}
+\newcommand\codefour{(e)\xspace}
+
+\lstset{ %
+  backgroundcolor=\color{white},   % choose the background color; you must add \usepackage{color} or \usepackage{xcolor}
+  basicstyle=\linespread{0.7}\footnotesize\ttfamily,        % the size of the fonts that are used for the code (scriptsize will violate min font size for PLDI)
+  columns=fullflexible,
+  breakatwhitespace=false,         % sets if automatic breaks should only happen at whitespace
+  breaklines=true,                 % sets automatic line breaking
+  captionpos=none,                 % sets the caption-position to bottom
+  commentstyle=\color{listinggreen},% comment style
+  deletekeywords={...},            % if you want to delete keywords from the given language
+  escapeinside={\%*}{*)},          % if you want to add LaTeX within your code
+  extendedchars=true,              % lets you use non-ASCII characters; for 8-bits encodings only, does not work with UTF-8
+  frame=none,                      % adds a frame around the code
+  keepspaces=true,                 % keeps spaces in text, useful for keeping indentation of code (possibly needs columns=flexible)
+  keywordstyle=\color{listingkeywordcolor}\bfseries,       % keyword style
+  language=C,             % the language of the code
+  morekeywords={*,...},            % if you want to add more keywords to the set
+  numbers=left,                    % where to put the line-numbers; possible values are (none, left, right)
+  numbersep=5pt,                   % how far the line-numbers are from the code
+  numberstyle=\tiny\color{listinggray}, % the style that is used for the line-numbers
+  rulecolor=\color{black},         % if not set, the frame-color may be changed on line-breaks within not-black text (e.g. comments (green here))
+  showspaces=false,                % show spaces everywhere adding particular underscores; it overrides 'showstringspaces'
+  showstringspaces=false,          % underline spaces within strings only
+  showtabs=false,                  % show tabs within strings adding particular underscores
+  stepnumber=1,                    % the step between two line-numbers. If it's 1, each line will be numbered
+  stringstyle=\color{listingmauve},% string literal style
+  tabsize=2,                       % sets default tabsize to 2 spaces
+  title=\lstname                   % show the filename of files included with \lstinputlisting; also try caption instead of title
+}
+
+
+\newcommand{\cL}{{\cal L}}
+
+
+
+
+
+
+
+
+
+
+
+\begin{document}
+
+\special{papersize=8.5in,11in}
+\setlength{\pdfpageheight}{\paperheight}
+\setlength{\pdfpagewidth}{\paperwidth}
+
+\conferenceinfo{PLDI '17}{June 18--23, 2017, Barcelona, Spain}
+\copyrightyear{2017}
+\copyrightdata{978-1-nnnn-nnnn-n/yy/mm}
+\copyrightdoi{nnnnnnn.nnnnnnn}
+
+% Uncomment the publication rights you want to use.
+%\publicationrights{transferred}
+%\publicationrights{licensed}     % this is the default
+%\publicationrights{author-pays}
+
+\titlebanner{}        % These are ignored unless
+\preprintfooter{}   % 'preprint' option specified.
+
+%\title{\TODO{Change title}\framework{}: a Framework for Iteration Space Transformation Separating the Algorithm, the Schedule and the Data-layout}
+\title{\framework{}: Polyhedral-Based Mid-Level Compiler for Domain Specific Languages}
+\subtitle{}
+
+\authorinfo{}
+           {}
+           {}
+%\authorinfo{Name2\and Name3}
+%           {Affiliation2/3}
+%           {Email2/3}
+
+\maketitle
+
+\begin{abstract}
+
+Compilers for high performance domain-specific languages (DSLs) are becoming more common,
+due to their demonstrated ability to leverage domain-specific optimizations to transform
+user code into high performance executables.  These optimizations
+mostly transform high-level code to enable high performance execution in multicores and graphics processing
+units (GPUs). However, state-of-the-art back-end compilers such as LLVM do not optimize beyond a single core with vector units.  Thus, DSL compilers need to expand into \emph{middle-end} compilers to enable these architectural optimizations,
+and most DSL compilers re-implement the same set of middle-end optimizations.  In this paper,
+we introduce \framework{}, a common middle-end compiler and representation suitable as a
+target for DSL compilers.  \framework{} introduces a three-level representation that separates the
+algorithm, how that algorithm is executed, and where intermediate data are stored.  As a result,
+DSL compilers can be made considerably less complex with no loss of performance.  We evaluate
+\framework by creating a new middle-end for the Halide compiler, and demonstrate no loss of performance
+while reducing the amount of middle-end code substantially.  Finally, we also demonstrate
+transformations made possible by \framework that are not possible in Halide, increasing performance
+by up to $10\times$.
+
+\end{abstract}
+
+\category{D.3.4}{Programming Languages}{Processors -- compilers, optimization,
+code generation}
+
+% general terms are not compulsory anymore,
+% you may leave them out
+%\terms
+%term1, term2
+
+\keywords
+intermediate representation; domain specific language; polyhedral
+compilation; iteration space transformation; parallelism;
+vectorization; GPU
+
+
+\input{intro}
+
+\input{overview}
+
+\input{notation}
+
+\input{threelayer}
+
+\input{compiler}
+
+\input{evaluation}
+
+\input{related}
+
+\input{conclusion}
+
+
+
+%% -------------------------------------------------
+
+% \acks
+
+% Acknowledgments, if needed.
+
+% We recommend abbrvnat bibliography style.
+
+%% -------------------------------------------------
+
+
+\bibliographystyle{abbrvnat}
+
+% The bibliography should be embedded for final submission.
+
+\bibliography{bibliography}
+
+%\appendix
+%\section{Appendix: Definitions}
+
+\end{document}
+
+
+
+%%%% Archive for text removed from the paper (if needed later)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%\framework uses an expressive representation for the three levels of the IR based on the polyhedral model; The separation between the three-levels is designed not only to separate computations from the schedule and data-layout specifications but also to open the door for affine transformation frameworks to work in synergy with non-affine transformation frameworks.  This is mainly because the transformation from one IR level to another can be done using an affine transformation or a non-affine transformation framework.  Code generation is unified, whether an affine or a non-affine transformation framework is used.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{comment}
+
+\subsection{Integrating Affine and Non-affine Transformations in one Framework}
+
+An extensive amount of research has been done in the area of polyhedral compilation and affine program transformations~\cite{}.  Polyhedral compilation uses an abstract mathematical representation to model programs: the iteration domain of a statement is represented as a set described using affine constraints (linear constraints) while loop transformations are expressed using affine relations between the iteration domain and a time domain.  Although such a representation is very expressive and can express affine transformations such as non-parametric loop tiling, loop fusion, loop distribution, loop skewing, ... little attention has been given to the integration of affine transformation frameworks with non-affine transformation frameworks (which can express non-affine transformations such as parametric tiling, parametric splitting, ...).
+
+In this paper, we introduce a common representation that can be used by both frameworks.  It is hybrid representation that combines the expressiveness of the polyhedral representations with the generality of interval based representations.  Transformations are still done in separate frameworks but the representation of the iteration domain, the time-space domain and the data-domain is unified.  We use one code generator to generate code in both cases.  We believe that such a representation is the right level of abstraction that can opens the door for polyhedral and affine-transformation frameworks to work in synergy with non-affine transformation frameworks.  This allows \framework to perform advanced transformations that are difficult to perform for a non-affine framework yet it can apply many classes of non-affine transformations.
+
+\subsection{Contributions}
+
+\framework is a intermediate representation and an open source framework for advanced iteration space transformations. It supports affine transformations and some classes of non-affine transformations.  The paper introduces:
+\begin{itemize}
+  \item A three-level IR that separates the algorithm from the schedule and the data-layout.  The first level describes the computations without describing how these computations are scheduled or where they are stored.  The second level describes how computations are scheduled but does not represent how they are stored.  Since this level does not represent the memory-layout, reasoning about code transformations becomes easier, since code transformation passes do not need to transform the data layout.  The third level specifies the data-layout.
+  \item A hybrid representation for the iteration domain and the time-space domain; this representation is based on integer intervals and on integer sets described with affine constraints.
+  \item A code generator that takes as input the hybrid time-space representation (which is a combination of integer intervals and affine constraints) and generates as output a sequence of loop nests.
+  \item The framework allows the application and the composition of affine transformations as well as some classes of non-affine transformations.
+  \item An open source framework that implements the three-level IR and generates code targeting single core CPU, multi-core CPU with vectorization and targets GPU architectures.  This level is validated on the Halide DSL industrial compiler.
+\end{itemize}
+
+%\begin{itemize}
+%  \item A three-level IR that separates the algorithm from the schedule and the data-layout. Since the memory-layout is not represented in the high levels of the IR where scheduling happens, reasoning about code transformations is easier since it does not involve data-layout transformations as well.
+  %, since code transformation passes do not need to transform the data layout.  The third level specifies the data-layout.
+  %The first level describes the computations without describing how these computations are scheduled or where they are stored.  The second level describes how computations are scheduled but does not represent how they are stored.  
+%  \item The framework allows the user to use an affine transformation or a non-affine transformation to transform the iteration domain to the time-space domain.
+%  \item A code generator that takes as input the time-space representation regardless of whether it was generated using an affine or a non-affine transformation; it generates a sequence of loop nests as output.
+%  \item An open source framework that implements the three-level IR and generates code targeting single core CPU, multi-core CPU with vectorization and targets GPU architectures.  This framework is validated on the Halide industrial DSL compiler.
+%\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%To illustrate this workflow, let us take the following code that implements a $3\times3$ box filter defined as two $3\times1$ filters.
+
+%\begin{lstlisting}[language=C,basicstyle=\scriptsize]
+%for (x in 0..N)
+% for (y in 0..M)
+%  blurx(x,y) = (in(x-1,y) + in(x,y) + in(x+1,y))/3
+%for (x in 0..N)
+% for (y in 0..M)
+%  blury(x,y) = (blurx(x,y-1) + blurx(x,y)+blurx(x,y+1))/3
+%\end{lstlisting}
+
+%The first computation, blurx, computes a horizontal blur of the input by averaging over a $3\times1$ window and the second computation, blury, computes the final blur by averaging a $1\times3$ window of the output from the first computation.
+
+% Let us suppose that we want to perform 
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{figure}[h]
+\begin{lstlisting}[language=C,basicstyle=\scriptsize]
+for (i in 0..N)
+  for (j in 0..M)
+    y(i,j) = 66*rgb(i,j,0) + 129*rgb(i,j,1) + 25*rgb(i,j,2)
+for (i in 0..N)
+  for (j in 0..M)
+    u(i,j) = -38*rgb(2*i,2*j,0) - 74*rgb(2*i,2*j,1) + 112*rgb(2*i,2*j,2)
+for (i in 0..N)
+  for (j in 0..M)
+    v(i,j) = 112*rgb(2*i,2*j,0) - 94*rgb(2*i,2*j,1) - 18*rgb(2*i,2*j,2)
+for (i in 0..N)
+  for (j in 0..M)
+    consumer(i,j) = y(i,j) + u(i,j) + v(i,j)
+\end{lstlisting}
+\caption{\label{fig:rgb2yuv1} RGB to YUV}
+\end{figure}
+
+\end{comment}

@@ -1,0 +1,120 @@
+
+\section{\label{sec:compilation}Compiling \framework}
+
+In this section we describe how DSL compilers generate Layers II and III from Layer I and how \framework{} generates back-end code from Layer III into a form suitable for consumption by LLVM or another low-level back-end compiler.
+\subsection{Generation of Layers II and III from Layer I}
+
+Transforming Layer I into Layers II and III can be done in three ways in \framework:
+\begin{itemize}
+    \item We allow the user to directly encode Layers II and III (i.e. the user does not need to generate them using a quasi-affine schedule).  This allows transformations that are non-affine (like transformations that add statements or that implement redundant computations) to be applied;
+    \item We allow the user to use a \emph{quasi-affine schedule} to automatically transform Layer I into Layers II and III;
+    \item We provide a simple set of transformation primitives such \lstinline{tile()}, \lstinline{vectorize()}, \lstinline{split()}, \lstinline{reorder()}, etc. that enable easy specification of transformations.  These primitives are similar to those in Halide~\cite{halide_12} and ChiLL~\cite{chill}.
+\end{itemize}
+
+
+
+
+\subsubsection{Generating Layer II and III Using Affine Transformations}
+Affine transformations including loop tiling, skewing, loop fusion, distribution, splitting, reordering, and many others  can be expressed as an affine map that maps computations from Layer I into the time-\processor space in Layer II.  As described in Section~\ref{layer2}, this map is called the \emph{schedule}.  It takes as input the iteration domains from Layer I and transforms them into new sets that represent the computations in time-\processor space.
+For example, suppose we want to tile the following set of computations from Layer I into 16 $\times$ 16 tiles and parallelize the outermost loop:
+$$\{C(i,j):  0\leq i < N \wedge 0\leq j < N \}: A(i,j) + B(i,j)$$
+
+To do so, we provide the following schedule to \framework:
+\begin{align*}
+\{C(i,&j)  \rightarrow  C[i_1 (cpu, virtual), j_1, i_2, j_2]: \\
+          & i_1=floor(i/16) \wedge i_2=i\bmod 16    \\
+          \wedge &  j_1=floor(j/16)  \wedge j_2=j\bmod 16  \\
+          \wedge &  0\leq i < N \wedge 0\leq j < N \}
+\end{align*}
+\noindent and instruct the \framework framework to automatically generate the Layer II representation.  \framework will apply the previous schedule on the $C(i,j)$ set of computations and will produce the following set in Layer II (time-\processor space):
+\begin{align*}
+\{C[& i_1 (cpu, virtual), j_1, i_2, j_2]:  \\
+    & i_1=floor(i/16) \wedge i_2=i\bmod 16 \\
+   \wedge &  j_1=floor(j/16) \wedge j_2=j\bmod 16 \\
+   \wedge & 0\leq i < N \wedge 0\leq j < N \}:\\
+   & A[i_1*16+i_2, j_1*16+j_2] * B[i_1*16+i_2, j_1*16+j_2]
+\end{align*}
+
+For convenience, a user can provide a data mapping at Layer I and let \framework transform the data mapping automatically while it is transforming the iteration domain; in this case, \framework requires the user to pass a data mapping from the iteration space to buffer elements instead of providing a data mapping from time-\processor{} space to buffer elements.
+
+% NOTE FROM SHOAIB: I think this is redundant with another subsection
+% Alternatively, the user can provide the following data mapping directly.
+
+% \begin{align*}
+% \{C[ & i_1 (cpu, virtual), j_1, i_2, j_2] \rightarrow \\
+%      & buf_c[i_1*16+i_2, j_1*16+j_2]: i_1=floor(i/16) \\
+%      \wedge & i_2=i\bmod 16 \wedge j_1=floor(j/16) \\
+%      \wedge & j_2=j\bmod 16 \wedge 0\leq i < N \wedge 0\leq j < N \}
+% \end{align*}
+
+
+%The user can alternatively provide the 
+%In the previous example, the user can provide the following data-mapping:
+
+%$\{C(i,j) \rightarrow buf_c[i,j]:  0\leq i \leq N \wedge 0\leq j \leq N \}$
+
+%\noindent and let \framework automatically generate:
+
+%$\{C[i_1 (cpu, virtual), j_1, i_2, j_2] \rightarrow buf_c[i_1*16+i_2, j_1*16+j_2]: i_1=i/16 \wedge i_2=i\bmod 16 \wedge j_1=j/16 \wedge j_2=j\bmod 16 \wedge 0\leq i \leq N \wedge 0\leq j \leq N \}$
+
+%non-linear parameters
+
+%\subsubsection{Generation Using Non-affine Transformations}
+
+%One can transform layer I into layer II using certain non-affine transformations.  We only allow transformations that result in a valid layer II representation (only quasi-affine constraints with expressions of parameters and constants are allowed).  In order to perform the transformation, the user needs to extract an interval based representation of the iteration space: a representation similar to the one used in~\cite{halide_12} where each dimension (iterator) of the iteration space is described using an interval of integers; this representation is less expressive than the polyhedral representation.  We provide two operators: \lstinline{get_lower_bound()} and \lstinline{get_upper_bound()} which take the ID of a dimension in the iteration space in layer I and extract the upper bound and lower bound on such dimension using polyhedral projection.
+%The interval based representation is transformed (for example parametric tiling can be applied on intervals) using a user defined technique.  The original accesses are also transformed by the user defined technique.  Then all the non-linear parameters in the interval bounds are wrapped into new parameters ($N/B$ for example is replaced by a new parameter $p_1$ that is declared in the beginning of the program).  Finally, layer II and layer III are generated.
+
+%Although this technique does not provide any fundamental support for non-affine transformations.  It allows in a very pragmatic way support for a certain number of non-affine transformations such as parametric tiling.
+
+%Non-affine transformations such as parametric tiling can be built on top of the \framework framework in a way similar to~\ref{}.
+
+\subsubsection{Generation Using Scheduling Commands}
+
+To enable higher productivity, \framework provides a set of predefined schedules for common affine loop nest transformations.  The user can simply declare a computation and then use one of the predefined scheduling commands to apply a transformation.  In addition, users can compose these scheduling commands and can define new commands.  For example, to apply the $16\times16$ tiling described above to $C$, users can simply call the predefined `tile()` function:
+
+\lstinline{C.tile(i, j, i1, j1, i2, j2, 16, 16)}
+
+This command will tile the dimensions $i$ and $j$ with a $16\times16$ tile size and will use $i_1$, $j_1$, $i_2$ and $j_2$ as new dimension names after tiling.
+
+The newly created $i_1$ and $j_2$ dimensions can be parallelized and vectorized by calling \lstinline{C.parallelize(i1)} and \lstinline{C.vectorize(j2, 4)} where 4 is the vector length.
+Alternatively, users can set a custom schedule using the \lstinline{.set_schedule()} command which takes a map from Layer I to Layer II and applies it.
+These scheduling commands in \framework provide an easy-to-use interface for advanced loop nest transformations in a composable way.
+%without the need to perform low level details of the \framework framework.
+
+\subsubsection{Directly Encoding Layer II and III}
+
+The \framework framework decouples the representation of the layers from the mechanism used to transform one IR layer to another.  The user is not tied to the use of quasi-affine transformations to transform Layer I into Layer II and III.  The user can use any framework to generate Layers II and III as long as the generated Layers are valid sets as described in Section~\ref{layer2} (a set of computations in the time-\processor space described using quasi-affine constraints).
+
+For example, suppose we want to tile the previous set of computations $C(i,j)$.  The user can directly provide the following transformed computations set  (which is in time-\processor space) and he does not need to provide any affine schedule that transforms Layer I into Layer II:
+
+\begin{align*}
+\{C[& i_1 (cpu, virtual), j_1, i_2, j_2]:  \\
+    & i_1=floor(i/16) \wedge i_2=i\bmod 16 \\
+   \wedge &  j_1=floor(j/16) \wedge j_2=j\bmod 16 \\
+   \wedge & 0\leq i < N \wedge 0\leq j < N \}:\\
+   & A[i_1*16+i_2, j_1*16+j_2] * B[i_1*16+i_2, j_1*16+j_2]
+\end{align*}
+
+To transform Layer II to Layer III, we only need to add a mapping from the computations of Layer II into buffer elements.
+For the previous example, the following data mapping should be added:
+
+\begin{align*}
+\{C[ & i_1 (cpu, virtual), j_1, i_2, j_2] \rightarrow \\
+     & buf_c[i_1*16+i_2, j_1*16+j_2]: i_1=floor(i/16) \\
+     \wedge & i_2=i\bmod 16 \wedge j_1=floor(j/16) \\
+     \wedge & j_2=j\bmod 16 \wedge 0\leq i < N \wedge 0\leq j < N \}
+\end{align*}
+
+\subsection{Code Generation from Layer III}
+
+Layer III is composed of sets of computations and maps describing the data mapping.  We generate loop nests from the ordered sets of computations in this layer.  Generating code from a set amounts to generating nested loops that visit each computation in the set, once and only once, while following the lexicographical ordering between integer tuples.
+We generate array accesses from the maps describing the data mapping.  The code generator we use in \framework is a part of the ISL~\cite{verdoolaege_isl:_2010} library and is similar to CLooG~\cite{Bastoul:2004:CGP:1025127.1025992}.
+
+
+\subsection{Support for Non-Static-Affine Iteration Spaces}
+
+\framework can represent non-static-affine code.  In particular, \framework{} can represent non-static-affine array accesses, \texttt{while} loops, non-static-affine loop bounds and non-static-affine conditionals.
+\framework treats any non-static-affine conditional in a way similar to~\cite{pencil}: the conditional is represented as a single macro-statement together with its body (i.e., as a statement encapsulating both the control and the body).  \texttt{while} loops and loops with non-static-affine bounds are handled in a way similar to Benabderrahmane et al.~\cite{Benabderrahmane}.
+
+
+

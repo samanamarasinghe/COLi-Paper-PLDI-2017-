@@ -1,0 +1,46 @@
+\section{Related Work}
+
+\subsection{High Performance DSL Compilers}
+
+High performance DSL compilers such as Halide~\cite{DBLP:conf/pldi/Ragan-KelleyBAPDA13},
+Diderot~\cite{diedrot_pldi12}, Simit~\cite{simit}, Polymage\cite{polymage}, OoLaLa~\cite{oolala_2000} and others build custom compilation pipelines for specific domains such as image processing or linear algebra.  These compilers have shown that it is possible to obtain high performance by  applying domain-specific optimizations in the course of compilation.  However, such compilers
+map DSL code directly to the target hardware, sometimes using a low-level compiler framework like
+LLVM.  Our goal in this work is to build a more generic framework and intermediate representation
+that can be used by domain-specific language compilers in place of ad-hoc re-implementations of compute and data transformations.
+
+\subsection{DSL IRs and Optimization Frameworks}
+
+Delite \cite{chafi_domain-specific_2011} is a generic
+framework for building DSL compilers
+using  Lightweight Modular Staging (LMS) \cite{lms_staging_10}, a technique for embedding code generators and compilers in Scala.  Delite exposes several parallel computation patterns that DSLs can use to express computation; however, it has no facilities for advanced loop nest transformations. We therefore believe that generic DSL frameworks like Delite can benefit from using \framework.
+
+PENCIL~\cite{pencil,pencil_paper} is another generic DSL IR and automatic optimization framework which uses a polyhedral representation internally.  It is a subset of C99 with additional constructs to help parallelizing compilers perform more accurate static analyses, and as a result generate more efficient code.  The Pluto~\cite{bondhugula_practical_2008} automatic scheduling algorithm used within PENCIL can be integrated seamlessly in \framework on top of the first layer.  The main difference between PENCIL and \framework is that \framework separates computation, schedule, and data layout.  In contrast, the PENCIL IR is a subset of C99 with arrays, scalar variables, etc. and thus successful parallelization and optimization sometimes requires data-layout transformations such as expansion and privatization which are not necessary in \framework.  %The fact that \framework does not represent in the upper layers simplifies data layout transformations such as the transformation from array-of-struct into a struct-of-array or array contraction.
+
+%Moreover, \framework is built on the idea of separation between components so that if one component is not efficient in a particular context, the remaining components of the framework can still be useful. For example, it is well known that automatic scheduling sometimes fails to find the best schedule (the large literature of auto-tuning~\cite{} proves that); \framework enables users in such a case to provide the optimal schedule manually, yet an algorithm such as the Pluto algorithm can be used on top
+% The goal of \framework is to build a framework that allows users to have full control on what is being generated and to build automation components on top of that.  If the automation components fail, the user should still be able to provide the schedule While the For example, one classical problem in a fully automatic optimization tool: the framework provides a \framework provides a framework that users of  can provide  separates between the IR representation is separated from how one transforms code generation from A framework such as PENCIL is a monolithic fully automatic framework
+CHiLL~\cite{chill,Hall2010} is a polyhedral based compiler framework for Fortran that allows users to express a composition of high-level transformations such as tiling and unrolling, which the system
+performs, freeing users from having to implement them. 
+URUK~\cite{Girbal2006} is a similar framework that also uses a polyhedral representation.  Other systems such as POET~\cite{Yi:2007ay} parametrize loop transformations with a language-agnostic, purely-syntactic transformation system.  These frameworks require working with concrete data layouts, in contrast to \framework that does not have a concrete data layout in its first layer.
+
+\subsection{Data-layout Transformation}
+
+Techniques such as scalar and array expansion remove false dependencies, enabling loop nest transformation and parallelization~\cite{feautrier_array_1988,kennedy_optimizing_2002}.
+Expansion increases dimensionality to create private copies of data for each loop iteration.  In \framework, computations are single assignment, and thus are fully expanded, obviating the need for privatization.
+
+A family of array contraction techniques attempts to reduce memory
+footprint without constraining loop nest transformations
+\cite{lefebvre_automatic_1998,Qui00,Darte_contraction_2005}: the compiler
+performs a maximal expansion before applying loop transformations, and then attempts to contract the expanded arrays.  \framework simplifies this process, since maximal expansion is not needed.  This is similar to Halide~\cite{halide_12} where computations are mapped by default to fully expanded arrays and then a compiler pass performs storage folding to contract arrays.% and either reduce their dimensionality, reduce the size of a dimension (and use a modulo operator to reuse array locations by multiple loop iterations) or transform the array into a scalar.
+
+Several alternative approaches try to constrain expansion. Maximal static expansion (MSE) restricts the elimination of dependencies to the situations where the data flow can be captured accurately at compilation time \cite{cohen_optimization_1998}. It is important when generalizing array dependence analyses and loop transformations to dynamic control flow, and it can be combined with array contraction~\cite{cohen_parallelization_1999}. A priori constraints on memory footprint can also be enforced, up to linear volume approximations~\cite{thies_unified_2001}, and more generally, trade-offs between parallelism and storage allocation can be explored. %These approaches are particularly interesting when adapting loop nests for execution on hardware accelerators and embedded processors with local memories.
+These techniques can also be applied in \framework to constrain the schedule.
+
+Data layout transformations for specific dependence patterns using the polyhedral model have been
+used to eliminate SIMD intra-vector operations~\cite{henretty.11.cc} and for enhancing cache locality in non-uniform cache access (NUCA) architectures~\cite{lu-pact09}.  These kinds of transformations can be easily implemented in \framework.
+
+\subsection{Functional IRs and Data Layout Transformations}
+
+The NOVA functional language~\cite{Collins:2014:NFL:2627373.2627375} was designed to be used as an IR for DSL compilers.   It is a polymorphic, statically-typed functional language with a suite of higher-order functions such as map, reduce and scan that are used to express parallelism.  Although the NOVA IR does not represent memory explicitly, it does not provide any framework for advanced loop nest transformations.  For example, only map functions that iterate over the same ranges can be fused.  Iteration space transformations such as skewing are not addressed. Transformations such as fusion are done at the function level. \framework provides an IR that allows advanced iteration space transformations while still separates the algorithm from the schedule and the data layout.
+
+Most functional languages do not expose notions of memory layout to programmers.  Instead, programmers rely on profiling tools to characterize data movement~\cite{Spoonhower:2008:SPP:1411203.1411240} or design algorithms around models of memory traffic for such programming languages~\cite{Blelloch:2013:CIE:2429069.2429077}.  In contrast, \framework{} enables writing the algorithm in a functional manner while separately dealing with data layout and computation scheduling.
+

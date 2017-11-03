@@ -1,0 +1,40 @@
+
+\section{Introduction}
+\label{sec:intro}
+
+Traditional compilers are layered into a set of front-end architecture-independent passes and back-end architecture-dependent passes. Domain-Specific Language (DSL) compilers, which restrict their domain to express and optimize specific kinds of computations, have been proliferating~\cite{halide_12,DBLP:conf/pldi/Ragan-KelleyBAPDA13,diedrot_pldi12,DBLP:journals/toms/AlnaesLORW14,polymage,bezanson2017julia,tensorflow} due to the increasing diversity of architectures and capabilities for computation, from mobile devices, the Internet of Things (IoT), and the cloud.
+%Most of these compilers specialize in front-end transformations, taking advantage of semantic knowledge of the language and domain to perform extensive optimizations. 
+In many cases, these DSL compilers use LLVM~\cite{llvm} as the back-end compiler. However, LLVM's low-level abstraction is single-threaded hardware with vector units. Thus, before calling LLVM, compilers need to perform transformations to take advantage of most modern hardware features such as multicore parallelism, complex non-uniform memory (NUMA) hierarchies, clusters, and accelerators like graphics processing units (GPUs). As a result, the compilers must expand into {\it middle-end} compilers performing all modern architectural optimizations.  While the diversity of front-end compilers is necessary, the middle-end compilers mostly re-implement the same set of optimizations for the same set of modern architectural features. To eliminate this redundancy, we introduce \framework, a common middle-end compiler framework that removes the burden of building middle-end compiler passes into every compiler.
+
+Building an effective middle-end compiler requires ensuring enough information is passed from higher levels
+to enable optimizations.  Furthermore, if the representation used in the middle-end is too low-level,
+transformations and optimizations may require undoing work from the higher level layer.  For example,
+LLVM and other low-level compiler frameworks use compact three-address instruction sets with a single monolithic memory abstraction to optimize for single-threaded performance.  However, this abstraction is insufficient for the middle-end.
+Information about coarse-grain parallelism is missing, making it difficult to identify parallelization
+opportunities.  In addition, memory layout decisions are already made, making it difficult to apply optimizations such as array privatization (which enables further optimizations such as loop fusion and
+parallelization), and specialization for NUMA or GPUs, since such transformations often require drastic rearrangement
+of memory layouts for intermediates.
+% Thus, building a new middle-end compiler requires introducing a new
+% representation.
+
+\framework{} is a middle-end framework for mapping between front-end computations and the back-end LLVM representations suitable for execution on the large variety of modern architectures and accelerators.  In order to perform this lowering, \framework{} introduces a novel three-layered representation that is ideal for mapping between the architecture-independent front-end to a single-thread-optimizing back-end, while taking advantage of all the high-level architectural features. The top layer, the {\it \Layerone}, describes the pure algorithm (the computations to perform). At this level, memory locations are not considered and all dependences are represented using producer-consumer relationships.  The second layer, the {\it \Layertwo}, specifies when and on which processor each computation is performed (time and space). The final layer, {\it \Layerthree}, specifies where to store produced data until they are consumed.  Within \framework{}, each layer can be automatically lowered to the subsequent layer; however, if this mapping needs to be controlled by the DSL compiler, \framework{} exposes the representations using a unified representation.
+
+Building an effective middle-end compiler requires also performing many tasks.  It should be able to, represent algorithms, express optimizations (iteration space and data layout transformations),  compose transformations, perform dependence analysis, decide about the legality of transformations (by relying on dependence analysis), ... etc.  The middle end-compiler can perform all of these tasks using different internal representations and frameworks but that would increase the complexity of the compiler.  \framework{} instead uses a unique framework to perform all of the previous tasks in a general and natural way.  It relies on an extended polyhedral representation~\cite{polyhedral_model}.  In this representation, the program (loops in particular) is represented as a set of points and different analysis and code transformations are performed using set operations (such as union, intersection, subtraction, projection).  The use of the polyhedral representation simplifies \framework{} since all of these tasks are expressed in the same formalism and can be expressed using basic set operations.
+
+\framework{} is not an automatic parallelizing compiler; transformation decisions are left to the front-end compiler, with \framework{} providing mechanisms to implement these decisions without unnecessary complexity.
+% \framework{} provides three methods with increasing complexity that the front-end can use to control middle-end transformations. The first method is a simple set of transformation commands, similar to Halide~\cite{halide_12} or ChiLL~\cite{chill}. The second is the ability to express the \Layertwo directly to indicate when and where computations should be executed.
+% The third is an {\it affine schedule}. 
+All the difficult work of bookkeeping, code and data transformations, and generating correct code to utilize specific hardware features is done by \framework{}, eliminating the need to build a full middle-end compiler per DSL.
+
+
+%Many of the current DSL IRs represent memory locations explicitly although the DSLs themselves do not have any notion of memory location.  In fact, we studied 12 DSL IRs and found that only one of them does not explicitly represent memory locations at the IR level, all the other IRs have a notion of statement and the notion of storage into memory locations (arrays, scalars, ...).
+%While the explicit representation of memory at the IR level may be well suited for languages such as C/C++ and Fortran, we believe that such a representation is not well suited for DSL IRs.  Here are motivating examples that show why we should also separate the data-mapping from the algorithm at the IR level.
+
+This paper makes the following contributions:
+\begin{itemize}
+  \item A three-layer intermediate representation (IR) that enables the separation between the algorithm, the schedule and the data layout. The first layer of the IR describes computations without describing how these computations are scheduled or where the intermediate values are stored.  The second layer describes how computations are scheduled but does not represent where the values are stored.  Reasoning about code transformations in this layer becomes easier, since code transformation passes do not need to transform the data layout.  The third layer specifies data layout.
+%  \item A flexible {\it time-processor vector} representation that supports many complex computation schedules. 
+  \item An open source implementation of the proposed framework: we generate code targeting multicore CPUs with vectorization, GPUs, FPGAs and distributed systems.
+  \item A demonstration of the viability of the framework by using it to build a middle-end for the Halide~\cite{halide_12,DBLP:conf/pldi/Ragan-KelleyBAPDA13} and the Julia~\cite{bezanson2017julia} compilers.
+  \item A demonstration of the power of the framework by performing transformations that the current Halide and julia compilers are unable to do, leading to up to 10$\times$ performance gains in Halide and 50$\times$ in Julia.
+\end{itemize}
