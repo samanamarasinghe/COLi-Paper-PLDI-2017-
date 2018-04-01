@@ -1,0 +1,15 @@
+\section{Generating \framework{} from Halide}
+
+To demonstrate the utility of \framework{}, we integrated it into the Halide compiler~\cite{halide_12}.
+A DSL compiler that uses \framework{} must generate three pieces of information:
+\begin{itemize}
+    \item Layer I, which describes the algorithm;
+    \item A scheduling map or a scheduling command;
+    \item Commands declaring the buffers and mapping the computations to buffer elements.
+\end{itemize}
+\framework takes the three inputs and generates Layer II, Layer III automatically, and then generates an Abstract Syntax Tree (AST) from Layer III. The AST is traversed to generate target code (LLVM IR, Nvidia PTX, etc.).
+
+Halide~\cite{halide_12} is an industrial-quality DSL for image processing.
+We generate \framework{} IR from Halide by mapping a Halide \lstinline{Func}, which is equivalent to a statement in a loop nest,  directly to a \framework{} computation (Layer I).  Reductions, which update the same function, are mapped to \framework computations as described in Section~\ref{layer1}.  Halide scheduling directives, such as tiling, splitting, reordering, parallelization, vectorization, etc., are directly mapped to the equivalent high level set of scheduling commands defined in \framework.  Finally, we map computations to buffer elements using the default Halide mappings, while allowing Halide scheduling commands that control data mappings to perform equivalent transformations for the Layer III representation.
+The rest of the code generation to low-level executable code takes place within \framework{}.
+%Further, \framework supports some scheduling directives that are currently not supported by Halide including loop-fusion and loop-skewing.

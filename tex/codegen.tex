@@ -1,0 +1,88 @@
+
+\section{Generating Code for Different Platforms}
+
+Generating code from Layer III (an ordered set of computations) amounts to generating nested loops (AST) that visit each computation in the set, once and only once, while following the lexicographical ordering between integer tuples.
+Array accesses are generated from the maps that describe the data mapping.
+The \framework{} code generator (which uses the ISL~\cite{verdoolaege_isl:_2010} library for code generation) takes Layer III as input and generates an AST as output.  The AST is then traversed to generate lower level code targeting different hardware architectures. 
+
+%While generating the Halide IR we tag loop nodes appropriately if the loop is parallel, vectorized, or should be mapped to a GPU block or a GPU thread.  The modified Halide backends take this Halide IR as input and generates LLVM IR (multicore backend) or Nvidia PTX (GPU backend).  The Halide backend does not perform any optimizations aside from the ones specified by \framework{} and simple dead code elimination and expression simplification.  In addition to the Halide CPU and GPU backend, we added a backend for distributed memory systems (MPI) and used the FROST~\cite{iccdFrost} framework to target FPGA (Vivado HLS).
+
+\vspace{-0.25cm}
+\subsection{Multicore CPU}
+
+When generating code that targets multicore shared memory systems, loop levels that are tagged as space \emph{cpu} dimensions are translated into parallel loops in the generated code, using OpenMP-style parallelism.  Loops that are tagged with the \emph{vec} space dimensions are translated into vectorized loops.  Currently we only support the vectorization of loops that do not contain any control flow.
+
+\vspace{-0.25cm}
+\subsection{GPU}
+For GPU code generation, data copy commands are provided in Layer III of \framework{}.  These commands are translated into the equivalent data copy calls in the lowered code.  Computation dimensions tagged with GPU thread or GPU block tags are translated into the appropriate GPU thread and block IDs in the lowered code.
+
+\subsection{Distributed Memory Systems}
+\begin{figure}
+\begin{lstlisting}[language=C,escapechar=@]
+// Layer I
+@\color{listingmauve}{\{bx(y,x): 0<=y<rows and 0<=x<cols\}}@ : @\label{line:bx}@
+        (in(y,x) + in(y,x+1) + in(y,x+2))/3);
+@\color{listingmauve}{\{by(y,x): 0<=y<rows and 0<=x<cols}\}@ : @\label{line:by}@
+        (bx(y,x) + bx(y+1,x) + bx(y+2,x))/3);
+// Layer II
+bx.split(y,chunk_sz,y1,y2); by.split(y,chunk_sz,y1,y2); @\label{line:split}@
+// Layer III
+comm_prop blk({BLOCK}), ablk({ASYNC,BLOCK}); @\label{line:comm_prop}@
+send_recv xfer = create_transfer("{(q,y,x): 1<=q<N-1 and 0<=y<2 and 0<=x<cols}","{(q,y,x): 0<=q<N-2 and 0<=y<2 and     0<=x<cols}",q-1,q,ablk,blk,bx(y,x)); @\label{line:bx_comm}@
+bx.distribute(y1); by.distribute(y1); @\label{line:comp_dist}@
+xfer.s->distribute(q); xfer.r->distribute(q); @\label{line:comm_dist}@
+\end{lstlisting}
+\caption{\framework{} pseudocode for a 3x3 distributed blur}
+\label{code:blurxy_dist}
+\vspace{-0.25cm}
+\end{figure}
+\framework{} utilizes MPI to generate code for distributed memory systems. Figure \ref{code:blurxy_dist} shows \framework{} pseudocode for a 3x3 distributed box blur. Lines \ref{line:bx} and \ref{line:by} define the blur computation. This code remains the same regardless of whether we use a shared memory or distributed memory back-end. 
+
+For this example, we want to distribute the computation such that each MPI \emph{rank} (process) operates on contiguous rows of the input data. Each rank gets \lstinline{chunk_sz} rows. On line \ref{line:split}, the outer loop is split by \lstinline{chunk_sz}. The resulting inner loop ranges over the rows in the chunk, and the outer loop ranges over the number of MPI ranks we want to use.
+
+Line \ref{line:comm_prop} and \ref{line:bx_comm} deal with communication. We assume that our image data is already distributed, thus only boundary rows need to be communicated among adjacent ranks. Line \ref{line:comm_prop} defines two communication types, which will be used to select the appropriate MPI function. \lstinline{blk} represents a blocking call, and \lstinline{ablk} represents an asynchronous, blocking call. We use two-sided communication in \framework{}, meaning communication is done with pairs of \emph{send} and \emph{receive} operations. The actual transfer is defined by \lstinline{create_transfer} on line \ref{line:bx_comm}, which takes as input the send and receive iteration domains, the source and destination ranks, the communication types for send and receive, and the access into the producer for the send.
+
+Line \ref{line:comp_dist} tags dimension \lstinline{y1} of \lstinline{bx} and \lstinline{by} as distributed, and line \ref{line:comm_dist} tags dimension \lstinline{q} of the \lstinline{send} and \lstinline{receive} as distributed. During code generation, we postprocess the generated code and convert each distributed loop into a conditional based on the rank of the executing process. For example: 
+\begin{lstlisting}[numbers=none]
+for(q in 1..N-1) {...} // distribute on q
+\end{lstlisting}
+becomes:
+\begin{lstlisting}[escapechar=@,numbers=none]
+q = get_rank(); if (q@$\geq$1@ and q<N-1) {...}
+\end{lstlisting}
+
+All of the other scheduling commands in \framework{} can be composed with transfers and distributed loops, as long as the composition is semantically correct.  This means we can do everything from basic transformations (e.g. tiling a transfer) to more advanced transformations (e.g. specializing a distributed computation based on rank).
+
+GPU scheduling can also be composed with distribution, allowing programs to execute in either a multi-GPU or heterogeneous CPU-GPU environment. Only a few extra scheduling commands need to be added to distributed \framework{} code to enable the use of GPU. Figure~\ref{code:blurxy_gpu_addition} shows the four additional scheduling commands needed to convert the distributed box blur code in Figure~\ref{code:blurxy_dist} to distributed GPU code. Lines \ref{line:host_to_device} and \ref{line:device_to_host} copy data from the host (CPU) to the device (GPU) and from the device to the host, respectively. Line \ref{line:gpu_thread} tags the computations to run on the GPU. The resulting code can be used to distribute the box blur computation across multiple GPUs that reside on different nodes. As with CPU distribution, we use MPI to control the inter-node communication.
+
+\begin{figure}
+\begin{lstlisting}[language=C,escapechar=@]
+input.copy_to_device(); @\label{line:host_to_device}@
+bx.gpu(y2,x); by.gpu(y2,x); @\label{line:gpu_thread}@
+output.copy_to_host(); @\label{line:device_to_host}@
+\end{lstlisting}
+\caption{Additional \framework{} commands needed to generate a 3x3 distributed GPU box blur}
+\label{code:blurxy_gpu_addition}
+\end{figure}
+% The distributed GPU backend utilizes the \framework{} GPU code backend for generating both the GPU code and the communication code between a host node and the GPU device. The distributed backend is leveraged to control distributing the computation and communication across host nodes with MPI. This allowsthe user to switch from the distributed CPU backend to the distributed GPU backend with minimal extra code. 
+% Figure \ref{code:blurxy_gpu_addition} shows the additional commands needed to convert the box blur from distributed CPU to distributed GPU code. 
+% In lines \ref{line:split_y2} and \ref{line:split_x}, we split the loops so we can assign them to GPU blocks and threads in lines \ref{line:gpu_block} and \ref{line:gpu_thread}. The final piece of code on line \ref{line:device_to_host} is needed to insert a transfer for the result of the GPU computation back to the CPU host memory on a node. This would be called in some wrapper code after the pipeline has completed execution. This transfer is handled by the Halide backend.
+% \vspace{-0.25cm}
+\subsection{FPGA}
+\framework{} relies on FROST \cite{iccdFrost} to generate code for FPGAs.
+FROST is a common back-end for the hardware acceleration of DSLs on FPGA. 
+%\framework{} relies on FROST \cite{iccdFrost} to generate code for FPGAs, a common back-end for the hardware acceleration of DSLs on FPGA. 
+It exposes an IR that DSLs can target, as well as a high level scheduling language to express FPGA-specific optimizations.
+%Currently, FROST only supports master/slave communication between the off-chip memory and FPGA.
+%FROST scheduling commands refers to: the computation schedule (e.g. loop pipelining, vectorization), data storage on the FPGA (e.g. array partitioning), and the type of communication with the off-chip memory (FROST currently supports a master/slave communication only).
+
+We integrated FROST within \framework{}, enabling us to target FPGAs.
+%, as well as take advantage of both frameworks scheduling commands.
+%FROST and the DSL compiler are supposed to work in synergy to produce efficient FPGA designs.
+We use \framework{} to perform loop nest transformations that are necessary to prepare the code for lowering to FPGA, while FROST focuses on the actual lowering to the target High-Level Synthesis (HLS) toolchain.  For example, in order to vectorize a loop, \framework{} first splits the loop so that the innermost loop has a fixed number of iterations and then tags that loop for later vectorization by FROST.
+FROST then performs the actual vectorization of both loop and input/output buffers.%while generating the target code.
+
+The output of FROST is a C++ implementation of the input code suitable for HLS tools, like Xilinx Vivado HLS \cite{vivado}.
+%FROST enforces the scheduling commands by means of either IR manipulation or pragma comments for HLS tools.
+Finally, FROST leverages Xilinx SDAccel to synthesize the resulting FPGA design and produce the bitstream file for execution on actual hardware.
+

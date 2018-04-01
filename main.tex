@@ -1,77 +1,61 @@
-%% For double-blind review submission, w/o CCS and ACM Reference (max submission space)
-\documentclass[sigplan,10pt,review,anonymous]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
-%% For double-blind review submission, w/ CCS and ACM Reference
-%\documentclass[sigplan,10pt,review,anonymous]{acmart}\settopmatter{printfolios=true}
-%% For single-blind review submission, w/o CCS and ACM Reference (max submission space)
-%\documentclass[sigplan,10pt,review]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
-%% For single-blind review submission, w/ CCS and ACM Reference
-%\documentclass[sigplan,10pt,review]{acmart}\settopmatter{printfolios=true}
-%% For final camera-ready submission, w/ required CCS and ACM Reference
-%\documentclass[sigplan,10pt]{acmart}\settopmatter{}
+\documentclass[sigconf, review]{acmart}
+
+\usepackage{booktabs} % For formal tables
 
 
-%% Conference information
-%% Supplied to authors by publisher for camera-ready submission;
-%% use defaults for review submission.
-\acmConference[PLDI'18]{Programming Language Design and Implementation}{June 20--22, 2018}{Phila., PA, USA}
-\acmYear{2018}
-\acmISBN{} % \acmISBN{978-x-xxxx-xxxx-x/YY/MM}
-\acmDOI{} % \acmDOI{10.1145/nnnnnnn.nnnnnnn}
-\startPage{1}
-
-%% Copyright information
-%% Supplied to authors (based on authors' rights management selection;
-%% see authors.acm.org) by publisher for camera-ready submission;
-%% use 'none' for review submission.
+% Copyright
 \setcopyright{none}
 %\setcopyright{acmcopyright}
 %\setcopyright{acmlicensed}
 %\setcopyright{rightsretained}
-%\copyrightyear{2017}           %% If different from \acmYear
-
-%% Bibliography style
-\bibliographystyle{ACM-Reference-Format}
-%% Citation style
-%\citestyle{acmauthoryear}  %% For author/year citations
-%\citestyle{acmnumeric}     %% For numeric citations
-%\setcitestyle{nosort}      %% With 'acmnumeric', to disable automatic
-                            %% sorting of references within a single citation;
-                            %% e.g., \cite{Smith99,Carpenter05,Baker12}
-                            %% rendered as [14,5,2] rather than [2,5,14].
-%\setcitesyle{nocompress}   %% With 'acmnumeric', to disable automatic
-                            %% compression of sequential references within a
-                            %% single citation;
-                            %% e.g., \cite{Baker12,Baker14,Baker16}
-                            %% rendered as [2,3,4] rather than [2-4].
+%\setcopyright{usgov}
+%\setcopyright{usgovmixed}
+%\setcopyright{cagov}
+%\setcopyright{cagovmixed}
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Note: Authors migrating a paper from traditional SIGPLAN
-%% proceedings format to PACMPL format must update the
-%% '\documentclass' and topmatter commands above; see
-%% 'acmart-pacmpl-template.tex'.
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% TODO (remove the following for camera ready)
+\settopmatter{printacmref=false}
+
+% DOI
+%\acmDOI{10.475/123_4}
+
+% ISBN
+%\acmISBN{123-4567-24-567/08/06}
+
+%Conference
+\acmConference[PACT'18]{ Parallel Architectures and Compilation Techniques}{November 2018}{Limassol, Cyprus}
+\acmYear{2018}
+\copyrightyear{2018}
 
 
-%% Some recommended packages.
-\usepackage{booktabs}   %% For formal tables:
-                        %% http://ctan.org/pkg/booktabs
-\usepackage{subcaption} %% For complex figures with subfigures/subcaptions
-                        %% http://ctan.org/pkg/subcaption
+%\acmArticle{4}
+%\acmPrice{15.00}
+
+% These commands are optional
+%\acmBooktitle{Transactions of the ACM Woodstock conference}
+%\editor{Jennifer B. Sartor}
+%\editor{Theo D'Hondt}
+%\editor{Wolfgang De Meuter}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{subcaption}
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{listings}
 \usepackage{color}
-%\usepackage[dvipsnames]{xcolor}
 \usepackage{xspace}
 \usepackage{comment}
 \usepackage{graphicx} 
-%\usepackage{inconsolata}
 \usepackage{appendix}
 \usepackage{wrapfig}
 \usepackage{multirow}
 \usepackage{bm}
 \usepackage{microtype}
+\usepackage{enumitem}
+
+\setlist{leftmargin=5.5mm}
 
 \definecolor{listinggreen}{rgb}{0,0.6,0}
 \definecolor{listinggray}{rgb}{0.5,0.5,0.5}
@@ -81,21 +65,19 @@
 
 \newcommand\layeronecolor{blue}
 
-\newcommand\TODO[1]{{\color{red}\textbf{TODO: }#1}}
 \newcommand\TOSAY[1]{{\color{black}\textbf{We Should Say That: }#1}}
 \newcommand\COMMENT[1]{}
 \newcommand\framework{\textsc{Tiramisu}\xspace}
-\newcommand\processor{processor\xspace}
-\newcommand\Processor{Processor\xspace}
+\newcommand\processor{space\xspace}
+\newcommand\Processor{Space\xspace}
 \newcommand\layerone{abstract computation layer\xspace}
 \newcommand\Layerone{Abstract Computation Layer\xspace}
 \newcommand\layertwo{computation placement layer\xspace}
 \newcommand\Layertwo{Computation Placement Layer\xspace}
 \newcommand\layerthree{concrete computation layer\xspace}
 \newcommand\Layerthree{Concrete Computation Layer\xspace}
-%\newcommand\id[2]{{\color{Red} #1} : {\color{black} #2}}
-%\newcommand\tsd[2]{{\color{Red} #1} : {\color{black} #2}}
-%\newcommand\data[1]{{\color{PineGreen} #1}}
+\newcommand\layerfour{new operation placement layer\xspace}
+\newcommand\Layerfour{New Operation Placement Layer\xspace}
 \newcommand{\pgrammar}[1]{\text{\sf\textless#1\textgreater}}
 
 \newcommand\codeone{(a)\xspace}
@@ -103,6 +85,10 @@
 \newcommand\codethree{(c)\xspace}
 \newcommand\codefour{(d)\xspace}
 \newcommand\codefive{(e)\xspace}
+\newcommand\codesix{(f)\xspace}
+\newcommand{\lone}[2]{{\color{\listingmauve}{#1}}\textbf{ : }{#2}\xspace}
+\newcommand{\HIDE}[1]{}
+\newcommand\TODO[1]{\mbox{\textcolor{red}{#1}}}
 
 \lstset{ %
   backgroundcolor=\color{white},   % choose the background color; you must add \usepackage{color} or \usepackage{xcolor}
@@ -136,180 +122,165 @@
 
 \newcommand{\cL}{{\cal L}}
 
-
-
-
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{document}
-
-%% Title information
-\title[Short Title]{\framework{}: Polyhedral-Based Mid-Level Compiler for Domain Specific Languages}         %% [Short Title] is optional;
-                                        %% when present, will be used in
-                                        %% header instead of Full Title.
-\titlenote{}             %% \titlenote is optional;
-                                        %% can be repeated if necessary;
-                                        %% contents suppressed with 'anonymous'
-\subtitle{}                     %% \subtitle is optional
-\subtitlenote{}       %% \subtitlenote is optional;
-                                        %% can be repeated if necessary;
-                                        %% contents suppressed with 'anonymous'
+\title{\framework{}: a Code Optimization Framework for   Targeting High Performance Systems}
+%\titlenote{Produces the permission block, and copyright information}
+%\subtitle{Extended Abstract}
+%\subtitlenote{The full version of the author's guide is available as
+%  \texttt{acmart.pdf} document}
 
 
-%% Author information
-%% Contents and number of authors suppressed with 'anonymous'.
-%% Each author should be introduced by \author, followed by
-%% \authornote (optional), \orcid (optional), \affiliation, and
-%% \email.
-%% An author may have multiple affiliations and/or emails; repeat the
-%% appropriate command.
-%% Many elements are not rendered, but should be provided for metadata
-%% extraction tools.
+%\author{Ben Trovato}
+%\authornote{Dr.~Trovato insisted his name be first.}
+%\orcid{1234-5678-9012}
+%\affiliation{%
+%  \institution{Institute for Clarity in Documentation}
+%  \streetaddress{P.O. Box 1212}
+%  \city{Dublin}
+%  \state{Ohio}
+%  \postcode{43017-6221}
+%}
+%\email{trovato@corporation.com}
 
-%% Author with single affiliation.
-\author{First1 Last1}
-\authornote{with author1 note}          %% \authornote is optional;
-                                        %% can be repeated if necessary
-\orcid{nnnn-nnnn-nnnn-nnnn}             %% \orcid is optional
-\affiliation{
-  \position{Position1}
-  \department{Department1}              %% \department is recommended
-  \institution{Institution1}            %% \institution is required
-  \streetaddress{Street1 Address1}
-  \city{City1}
-  \state{State1}
-  \postcode{Post-Code1}
-  \country{Country1}                    %% \country is recommended
-}
-\email{first1.last1@inst1.edu}          %% \email is recommended
+%\author{G.K.M. Tobin}
+%\authornote{The secretary disavows any knowledge of this author's actions.}
+%\affiliation{%
+%  \institution{Institute for Clarity in Documentation}
+%  \streetaddress{P.O. Box 1212}
+%  \city{Dublin}
+%  \state{Ohio}
+%  \postcode{43017-6221}
+%}
+%\email{webmaster@marysville-ohio.com}
 
-%% Author with two affiliations and emails.
-\author{First2 Last2}
-\authornote{with author2 note}          %% \authornote is optional;
-                                        %% can be repeated if necessary
-\orcid{nnnn-nnnn-nnnn-nnnn}             %% \orcid is optional
-\affiliation{
-  \position{Position2a}
-  \department{Department2a}             %% \department is recommended
-  \institution{Institution2a}           %% \institution is required
-  \streetaddress{Street2a Address2a}
-  \city{City2a}
-  \state{State2a}
-  \postcode{Post-Code2a}
-  \country{Country2a}                   %% \country is recommended
-}
-\email{first2.last2@inst2a.com}         %% \email is recommended
-\affiliation{
-  \position{Position2b}
-  \department{Department2b}             %% \department is recommended
-  \institution{Institution2b}           %% \institution is required
-  \streetaddress{Street3b Address2b}
-  \city{City2b}
-  \state{State2b}
-  \postcode{Post-Code2b}
-  \country{Country2b}                   %% \country is recommended
-}
-\email{first2.last2@inst2b.org}         %% \email is recommended
+%\author{Lars Th{\o}rv{\"a}ld}
+%\authornote{This author is the
+%  one who did all the really hard work.}
+%\affiliation{%
+%  \institution{The Th{\o}rv{\"a}ld Group}
+%  \streetaddress{1 Th{\o}rv{\"a}ld Circle}
+%  \city{Hekla}
+%  \country{Iceland}}
+%\email{larst@affiliation.org}
+
+%\author{Valerie B\'eranger}
+%\affiliation{%
+%  \institution{Inria Paris-Rocquencourt}
+%  \city{Rocquencourt}
+%  \country{France}
+%}
+%\author{Aparna Patel}
+%\affiliation{%
+% \institution{Rajiv Gandhi University}
+% \streetaddress{Rono-Hills}
+% \city{Doimukh}
+% \state{Arunachal Pradesh}
+% \country{India}}
+%\author{Huifen Chan}
+%\affiliation{%
+%  \institution{Tsinghua University}
+%  \streetaddress{30 Shuangqing Rd}
+%  \city{Haidian Qu}
+%  \state{Beijing Shi}
+%  \country{China}
+%}
+
+%\author{Charles Palmer}
+%\affiliation{%
+%  \institution{Palmer Research Laboratories}
+%  \streetaddress{8600 Datapoint Drive}
+%  \city{San Antonio}
+%  \state{Texas}
+%  \postcode{78229}}
+%\email{cpalmer@prl.com}
+
+%\author{John Smith}
+%\affiliation{\institution{The Th{\o}rv{\"a}ld Group}}
+%\email{jsmith@affiliation.org}
+
+%\author{Julius P.~Kumquat}
+%\affiliation{\institution{The Kumquat Consortium}}
+%\email{jpkumquat@consortium.net}
+
+% The default list of authors is too long for headers.
+%\renewcommand{\shortauthors}{B. Trovato et al.}
 
 
-%% Abstract
-%% Note: \begin{abstract}...\end{abstract} environment must come
-%% before \maketitle command
 \begin{abstract}
-%Compilers for high performance domain-specific languages (DSLs) are becoming more common, due to their demonstrated ability to leverage domain-specific optimizations to transform
-% user code into high performance executables.  These optimizations
-% mostly transform high-level code to enable high performance execution in multicores and graphics processing
-%units (GPUs). However, state-of-the-art back-end compilers such as LLVM do not optimize beyond a single core with vector units.  Thus, DSL compilers need to expand into \emph{middle-end} compilers to enable these architectural optimizations,
-%and most DSL compilers re-implement the same set of middle-end optimizations.  In this paper,
-%we introduce \framework{}, a common middle-end compiler and representation suitable as a
-%target for DSL compilers.
 
-\framework{} introduces a three-level representation that separates the
-algorithm, how that algorithm is executed, and where intermediate data are stored.  As a result,
-DSL compilers can be made considerably less complex with no loss of performance.  We evaluate
-\framework by creating a new middle-end for the Halide compiler, and demonstrate no loss of performance
-while reducing the amount of middle-end code substantially.  Finally, we also demonstrate
-transformations made possible by \framework that are not possible in Halide, increasing performance
-by up to $10\times$.
-
+High-performance DSL developers work hard to take advantage of modern hardware. The DSL compilers have to build their own complex middle-ends before they can target a common back-end such as LLVM, which only handles single instruction streams with SIMD instructions. We introduce \framework{}, a common middle-end that can generate efficient code for modern processors and accelerators such as multicores, GPUs, FPGAs and distributed clusters.
+\framework{} introduces a novel three-level IR that separates the
+algorithm, how that algorithm is executed, and where intermediate data are stored.  This separation simplifies optimization and makes targeting multiple hardware architectures from the same algorithm easier.  As a result,
+DSL compilers can be made considerably less complex with no loss of performance while immediately targeting multiple hardware or hardware combinations such as distributed nodes with both CPUs and GPUs.  We evaluated \framework by creating a new middle-end for the Halide and Julia compilers.
+We show that \framework{} extends Halide and Julia with many new capabilities including the ability to: express new algorithms (such as recurrent filters and non-rectangular iteration spaces), perform new complex loop nest transformations (such as wavefront parallelization, loop shifting and loop fusion), and generate efficient code for more architectures (such as combinations of distributed clusters, multicores, GPUs and FPGAs).
+Finally, we demonstrate that \framework{} can generate a very efficient code that matches the highly optimized Intel MKL gemm (generalized matrix multiplication) implementation.  We show that \framework{} can generate code that outperforms Intel MKL DNN convolutions and show speedups reaching $4\times$ over the original Halide due to the optimization enabled by \framework{}.
 \end{abstract}
 
-
-%% 2012 ACM Computing Classification System (CSS) concepts
-%% Generate at 'http://dl.acm.org/ccs/ccs.cfm'.
+%
+% The code below should be generated by the tool at
+% http://dl.acm.org/ccs.cfm
+% Please copy and paste the code instead of the example below.
+%
 \begin{CCSXML}
 <ccs2012>
-<concept>
-<concept_id>10011007.10011006.10011008</concept_id>
-<concept_desc>Software and its engineering~General programming languages</concept_desc>
-<concept_significance>500</concept_significance>
-</concept>
-<concept>
-<concept_id>10003456.10003457.10003521.10003525</concept_id>
-<concept_desc>Social and professional topics~History of programming languages</concept_desc>
-<concept_significance>300</concept_significance>
-</concept>
+ <concept>
+  <concept_id>10010520.10010553.10010562</concept_id>
+  <concept_desc>Computer systems organization~Embedded systems</concept_desc>
+  <concept_significance>500</concept_significance>
+ </concept>
+ <concept>
+  <concept_id>10010520.10010575.10010755</concept_id>
+  <concept_desc>Computer systems organization~Redundancy</concept_desc>
+  <concept_significance>300</concept_significance>
+ </concept>
+ <concept>
+  <concept_id>10010520.10010553.10010554</concept_id>
+  <concept_desc>Computer systems organization~Robotics</concept_desc>
+  <concept_significance>100</concept_significance>
+ </concept>
+ <concept>
+  <concept_id>10003033.10003083.10003095</concept_id>
+  <concept_desc>Networks~Network reliability</concept_desc>
+  <concept_significance>100</concept_significance>
+ </concept>
 </ccs2012>
 \end{CCSXML}
 
-\ccsdesc[500]{Software and its engineering~General programming languages}
-\ccsdesc[300]{Social and professional topics~History of programming languages}
-%% End of generated code
+% TODO for camera ready.
+%\ccsdesc[500]{Computer systems organization~Embedded systems}
+%\ccsdesc[300]{Computer systems organization~Redundancy}
+%\ccsdesc{Computer systems organization~Robotics}
+%\ccsdesc[100]{Networks~Network reliability}
 
 
-%% Keywords
-%% comma separated list
-\keywords{code optimization framework, intermediate representation, domain specific language, polyhedral compilation, iteration space transformation}  %% \keywords are mandatory in final camera-ready submission
+\keywords{Code Optimization, Generation, Polyhedral Model, CPU, GPU, FPGA, Distributed System, Heterogeneous System}
 
-%% \maketitle
-%% Note: \maketitle command must come after title commands, author
-%% commands, abstract environment, Computing Classification System
-%% environment and commands, and keywords command.
+
 \maketitle
 
-\input{intro}
-
-\input{overview}
-
-\input{notation}
-
-\input{threelayer}
-
-\input{compiler}
-
-\input{evaluation}
-
-\input{related}
-
-\input{conclusion}
 
 
-%% Acknowledgments
-\begin{acks}                            %% acks environment is optional
-                                        %% contents suppressed with 'anonymous'
-  %% Commands \grantsponsor{<sponsorID>}{<name>}{<url>} and
-  %% \grantnum[<url>]{<sponsorID>}{<number>} should be used to
-  %% acknowledge financial support and will be used by metadata
-  %% extraction tools.
-  This material is based upon work supported by the
-  \grantsponsor{GS100000001}{National Science
-    Foundation}{http://dx.doi.org/10.13039/100000001} under Grant
-  No.~\grantnum{GS100000001}{nnnnnnn} and Grant
-  No.~\grantnum{GS100000001}{mmmmmmm}.  Any opinions, findings, and
-  conclusions or recommendations expressed in this material are those
-  of the author and do not necessarily reflect the views of the
-  National Science Foundation.
-\end{acks}
+\input{tex/intro}
+
+\input{tex/overview}
+
+\input{tex/related}
+
+\input{tex/threelayer}
+
+\input{tex/DSLtoTiramisu}
+
+\input{tex/codegen}
+
+\input{tex/evaluation}
+
+\input{tex/conclusion}
 
 
-%% Bibliography
+
+\bibliographystyle{ACM-Reference-Format}
 \bibliography{bibliography}
-
-
-%% Appendix
-%\appendix
-%\section{Appendix}
-
-%Text of appendix \ldots
 
 \end{document}

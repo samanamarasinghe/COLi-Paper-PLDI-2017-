@@ -1,0 +1,49 @@
+\section{Related Work}
+
+The design of \framework{} inherits from the design of two systems: Halide~\cite{halide_12} and PENCIL~\cite{pencil_paper}. It takes the best of the two systems and uses that to build an optimization framework that targets high performance systems including distributed heterogeneous systems.
+
+The Halide~\cite{halide_12} image processing DSL relies on conservative rules to determine whether a scheduling command is legal or not, for example Halide does not allow the fusion of two loops (using the \textit{compute\_with} command) if the second loop reads a value produced by the first loop.
+%The goal of this rule is to avoid the illegal fusing of two loops if the last iterations of the first loop produces a value consumed by the first iterations of the second loop.
+While this rule avoids illegal fusion, it is too conservative and prevents many common cases where fusion is legal which leads to suboptimal performance.
+Halide also assumes that the program has an acyclic dataflow graph in order to simplify checking the legality of scheduling commands. This prevents users from expressing any program with a cyclic dataflow.
+It is possible in some cases to use workaround methods to avoid the above problems, but these methods are not general.
+\framework{} avoids the above problems by relying on dependence analysis to check for the correctness of code transformations thus the user has less constraints on the input language and more freedom in scheduling.
+
+%It is still possible to to force Halide to accept the fusion by using the (\textit{in}) keyword, but that method is not general and complicates the automation of scheduling (using autotuning for example) since automation requires the ability to automatically decide about the legality of transformation.
+
+Since Halide uses intervals to represent iteration spaces, it can only represent rectangular iteration spaces, \framework{} in contrast can express non-rectangular iteration spaces naturally since it uses a polyhedral representation.  The polyhedral representation also allows \framework{} to perform precise bound inference for non-rectangular iteration spaces and also to perform many complex affine transformations such as iteration space skewing (wavefront parallelism) which Halide cannot perform.
+
+PENCIL~\cite{pencil,pencil_paper} is a generic DSL IR and automatic optimization framework which uses a polyhedral representation internally.  It is a subset of C99 with additional constructs to help parallelizing compilers perform more accurate static analyses, and as a result generate more efficient code.  The Pluto~\cite{bondhugula_practical_2008} automatic scheduling algorithm used within PENCIL can be integrated seamlessly in \framework on top of the first layer.  The main difference between PENCIL and \framework is that \framework separates computation, schedule, and data layout.  In contrast, the PENCIL IR is a subset of C99 with arrays, scalar variables, etc., and thus successful parallelization and optimization sometimes require data-layout transformations, such as expansion and privatization, which are not necessary in \framework.
+CHiLL~\cite{chill,Hall2010}, AlphaZ~\cite{yuki2012alphaz} and URUK~\cite{Girbal2006} are polyhedral frameworks that allow users to express a composition of high-level transformations, freeing users from having to implement them.  The main difference with \framework{} is that it targets distributed heterogeneous systems with support of GPUs and FPGAs.
+\framework{}, being a polyhedral framework, proves polyhedral frameworks can generate fast code matching the performance of the most optimized kernels (Intel MKL Gemm for example).
+
+%Other systems such as POET~\cite{Yi:2007ay} parametrize loop transformations with a language-agnostic, purely-syntactic transformation system.  These frameworks require working with concrete data layouts, in contrast to \framework that does not have a concrete data layout in its first layer.
+
+%TODO: talk about CyClops/Chapel.
+CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel CyClops and Chapel.
+
+
+Delite \cite{chafi_domain-specific_2011} is a generic
+framework for building DSL compilers using Lightweight Modular Staging (LMS) \cite{lms_staging_10}. It exposes several parallel computation patterns that DSLs can use to express parallelism.
+NOVA~\cite{Collins:2014:NFL:2627373.2627375} is another IR for DSL compilers. It is a functional language that relies on a suite of higher-order functions such as map, reduce, and scan to express parallelism.
+\framework{} is complementary to these frameworks as \framework{} would allow them to perform and compose a large set of affine transformations while still separating the algorithm from the schedule and the data layout and enabling them to target distributed heterogeneous systems.
+
+Most functional languages do not expose notions of memory layout to programmers.  Instead, programmers rely on profiling tools to characterize data movement~\cite{Spoonhower:2008:SPP:1411203.1411240} or design algorithms around models of memory traffic for such programming languages~\cite{Blelloch:2013:CIE:2429069.2429077}.  In contrast, \framework{} enables writing algorithms in a functional manner while separately dealing with data layout and computation scheduling using a fine grain scheduling language.
+
+% which they currently do not do (such as loop skewing, loop shifting, loop fusion when loop bounds are not equal, loop partitioning to reduce control flow and enable vectorization and unrolling, ...).  \framework{} also enables these frameworks to target distributed heterogeneous systems.
+% Delite can only perform a limited number of loop nest transformations, it does not have has no facilities for advanced loop nest transformations. We therefore believe that generic DSL frameworks like Delite can benefit from using \framework.
+%Although the NOVA IR does not represent memory explicitly, it does not provide any framework for advanced loop nest transformations.  For example, only map functions that iterate over the same ranges can be fused.  Iteration space transformations such as skewing are not addressed. Transformations such as fusion are done at the function level. \framework provides an IR that allows advanced iteration space transformations.
+
+%Darkroom \cite{darkroom} and \cite{halidefpga} are designed to target FPGA and ASICs from high level image processing DSLs.  \framework{} in contrast is designed to support a larger set of applications and to target other hardware architectures such as GPUs and distributed systems.
+
+%\noindent \textbf{Data-layout Transformation}
+
+%Techniques such as scalar and array expansion remove false dependencies, enabling loop nest transformation and parallelization~\cite{feautrier_array_1988,kennedy_optimizing_2002}.
+%Expansion increases dimensionality to create private copies of data for each loop iteration.  In \framework, computations are single assignment, and thus are fully expanded, obviating the need for privatization.
+
+%A family of array contraction techniques attempts to reduce the memory footprint without constraining loop nest transformations \cite{lefebvre_automatic_1998,Qui00,Darte_contraction_2005}: the compiler performs a maximal expansion before applying loop transformations, and then attempts to contract the expanded arrays.  \framework simplifies this process, since maximal expansion is not needed.  This is similar to Halide~\cite{halide_12} where computations are mapped by default to fully expanded arrays and then a compiler pass performs storage folding to contract arrays.% and either reduce their dimensionality, reduce the size of a dimension (and use a modulo operator to reuse array locations by multiple loop iterations) or transform the array into a scalar.
+
+%Several alternative approaches try to constrain expansion. Maximal static expansion (MSE) restricts the elimination of dependencies to the situations where the data flow can be captured accurately at compilation time \cite{cohen_optimization_1998}. It is important when generalizing array dependence analyses and loop transformations to dynamic control flow, and it can be combined with array contraction~\cite{cohen_parallelization_1999}. A priori constraints on memory footprint can also be enforced, up to linear volume approximations~\cite{thies_unified_2001}, and more generally, trade-offs between parallelism and storage allocation can be explored. %These approaches are particularly interesting when adapting loop nests for execution on hardware accelerators and embedded processors with local memories.
+%These techniques can also be applied in \framework to constrain the schedule.
+
+%Data layout transformations for specific dependence patterns using the polyhedral model have been used to eliminate SIMD intra-vector operations~\cite{henretty.11.cc} and for enhancing cache locality in non-uniform cache access (NUCA) architectures~\cite{lu-pact09}.  These kinds of transformations can be easily implemented in \framework.
