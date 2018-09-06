@@ -24,13 +24,15 @@ These first type of scheduling commands is implemented by applying a map that tr
 
 This map is then applied on the Layer I representation producing the Layer II representation (presented in the previous section). Composing many transformations is done by composing different maps, since the composition of two affine maps is an affine map.
 
-Once all the first type of commands are applied, the second type of commands adds \processor tags to the layer II dimensions to indicate whether which loop levels should be parallelized, vectorized, mapped to a GPU block, ...
+The second type of commands adds \processor tags to the layer II dimensions to indicate whether which loop levels should be parallelized, vectorized, mapped to a GPU block, ...
 
-\subsection{Transforming Layer II into Layer III}
+\vspace{-0.25cm}
+\paragraph{Transforming Layer II into Layer III}
 This is done by augmenting Layer II with access relations.  By default, \framework{} uses identity access relations (i.e., access relations that store a computation \texttt{C(i,j)} into a buffer \texttt{C[i,j]}.  If the \texttt{store\_in()} commands is used, the access relation is deduced from that command instead.  Buffer allocations are also done while transforming Layer II into Layer III. The scheduling command \texttt{b.allocate\_at(C, i)} create a new statement that allocates the buffer \texttt{b} in the same loop nest of the computation \texttt{C} but at the loop level \texttt{i}.
 The iteration domain domain of the allocation statement is deduced automatically from the iteration domain of \texttt{C} as follows: in Layer II, the iteration domain of \texttt{C} is already transformed into the time-\processor domain (i.e., C is already scheduled).  The iteration domain of \texttt{b} is equal to the iteration domain of \texttt{C} except that the dimensions after \texttt{i} (inner loop levels) are projected out (i.e., removed).
 
-\subsection{Transforming Layer III into Layer IV}
+\vspace{-0.25cm}
+\paragraph{Transforming Layer III into Layer IV}
 Scheduling commands for data communication (send and receive), synchronization and for copying data between global, shared and local memory are all translated into statements.  For example, the \texttt{send()} and \texttt{receive()} commands are translated into function calls that will be translated during code generation into MPI calls.
 
 \vspace{-0.25cm}
@@ -48,7 +50,8 @@ The \framework{} code generator takes Layer IV as input and generates an abstrac
 \vspace{-0.25cm}
 \subsubsection{GPU (CUDA)}
 For GPU code generation, data copy commands and information about where to store buffers (shared, constant, or global memory) are all provided in Layer IV.  \framework{} translates these into the equivalent data copies and buffer allocations in the generated code.  Computation dimensions tagged with GPU thread or GPU block tags are translated into the appropriate GPU thread and block IDs in the lowered code.  The \framework{} code generator can generate coalesced array accesses and can use shared and constant memories. It can also avoid thread divergence by separating full tiles (loop nests with a size that is multiple of the tile size) from partial tile (the remaining part of a loop).
-The final output of the GPU code generator is an optimized CUDA code. For more details about GPU code generation in the polyhedral model please refer to~\cite{pencil_pact,Verdoolaege2013PPCG}
+The final output of the GPU code generator is an optimized CUDA code.
+%For more details about GPU code generation in the polyhedral model please refer to~\cite{pencil_pact,Verdoolaege2013PPCG}
 %For GPU code, CUDA source \framework{} generates CUDA source from the AST.
 
 
