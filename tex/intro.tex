@@ -3,13 +3,13 @@
 \label{sec:intro}
 
 Generating efficient code for high performance systems is becoming more and more difficult as these architectures are increasing in complexity and diversity.
-Getting the best performance from these architectures requires complex code and data layout transformations, management of complex memory hierarchies, and efficient data communication and synchronization.
+Obtaining the best performance requires complex code and data layout transformations, management of complex memory hierarchies, and efficient data communication and synchronization.
 
 For example, consider generalized matrix multiplication (\texttt{gemm}), which computes $C = \alpha AB + \beta C$ and is a
 building block of numerous algorithms, including simulations and convolutional neural networks.  Highly-tuned implementations
-require the fusion of the multiplication and addition loops, application of two-level tiling, vectorization, loop unrolling, array packing~\cite{Goto:2008:AHM:1356052.1356053},
+require fusing the multiplication and addition loops, as well as applying two-level tiling, vectorization, loop unrolling, array packing~\cite{Goto:2008:AHM:1356052.1356053},
 register blocking, and data prefetching.  Furthermore, tuned implementations separate partial tiles from full tiles, since partial tiles cannot fully benefit from the same optimizations.
-High performance GPU implementations require even more optimizations.  Memory accesses should be coalesced, data movement must be managed between global memory, shared memory, and registers, with synchronization primitives inserted where necessary.
+High performance GPU implementations require even more optimizations.  Memory accesses should be coalesced, and data movement must be managed between global memory, shared memory, and registers, with synchronization primitives inserted where necessary.
 Automatically generating such complex code is still beyond the capabilities of state-of-the-art compilers.
 The importance of kernels such as \texttt{gemm}, along with the immense complexity of optimized implementations, motivate vendors to release highly hand-optimized libraries for such kernels.  However, for most users, obtaining this level of performance for their own code is challenging, since the effort required to explore the space of possible implementations is intractable when hand-coding complex code transformations.
 
