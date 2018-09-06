@@ -48,7 +48,7 @@ The \framework{} code generator takes Layer IV as input and generates an abstrac
 \vspace{-0.25cm}
 \subsubsection{GPU (CUDA)}
 For GPU code generation, data copy commands and information about where to store buffers (shared, constant, or global memory) are all provided in Layer IV.  \framework{} translates these into the equivalent data copies and buffer allocations in the generated code.  Computation dimensions tagged with GPU thread or GPU block tags are translated into the appropriate GPU thread and block IDs in the lowered code.  The \framework{} code generator can generate coalesced array accesses and can use shared and constant memories. It can also avoid thread divergence by separating full tiles (loop nests with a size that is multiple of the tile size) from partial tile (the remaining part of a loop).
-The final output of the GPU code generator is an optimized CUDA code. For more details about GPU code generation in the polyhedral model please refer to~\cite{pencil_pact,}
+The final output of the GPU code generator is an optimized CUDA code. For more details about GPU code generation in the polyhedral model please refer to~\cite{pencil_pact,Verdoolaege2013PPCG}
 %For GPU code, CUDA source \framework{} generates CUDA source from the AST.
 
 
