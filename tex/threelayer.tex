@@ -8,7 +8,7 @@ This section illustrates why, and describes the layers of the \framework{} IR.
 Most intermediate representations use memory to communicate between program statements.  This creates memory-based dependencies in the program which also means that the data-layout should be chosen before deciding how the code should be scheduled (i.e., how it should be optimized and mapped to hardware).  Optimizing a program for different hardware architectures usually requires modifying the data-layout and eliminating memory-based dependencies since they restrict optimization~\cite{maydan1992data}.  Thus, any data-layout specified before scheduling must be undone to allow more freedom for scheduling, and the code must be adapted to use the data-layout best-suited for the target hardware.
 Applying these data-layout transformations and the elimination of memory-based dependencies is challenging~\cite{gupta1997privatization,autoPrivatPeng,li_array_1992,feautrier_array_1988,midkiff_automatic_2012,maydan_array-data_1993,lefebvre_automatic_1998,Qui00,Darte_contraction_2005}.
 
-Another example that makes code generation complicated is mapping buffers to shared and local memory on GPU.  The amount of data that needs to be copied to shared memory and when to perform synchronization all depend on how the code is optimized (for example,  whether the code has two-level tiling or not).  The same applies to deciding about the amount of data to send or receive when generating distributed code.   Therefore, communication management, buffer mapping to memory hierarchies and synchronization should not be done before scheduling.
+Another example that makes code generation complicated is mapping buffers to shared and local memory on GPU.  The amount of data that needs to be copied to shared memory and when to perform synchronization all depend on how the code is optimized (for example,  whether the code has two-level tiling or not).  The same applies to deciding about the amount of data to send or receive when generating distributed code.   Therefore, communication management, buffer mapping to memory hierarchies, and synchronization should not be done before scheduling.
 
 \framework{} addresses these challenges by using a multi-layer IR that fully separates the architecture-independent algorithm from the schedule, data-layout and communication.
 The top layer representation describes the pure algorithm using producer-consumer relationships without memory locations.
@@ -139,7 +139,7 @@ Possible data mappings in \framework include mapping computations to structures-
 Layer III adds data-layout mapping to Layer II, concretizing where each computation is stored (declarations of memory buffers and scalars are also introduced in this layer, based on the schedule).
 
 In the example, setting the data access using\\ \texttt{by.store\_in({c,i,j})}\\
-indicates that the result of the computation \poly{$by(i, j, c)$} is stored in the array element \poly{$by[c,i,j]$}. This command generates the following map in layer III
+indicates that the result of the computation \poly{$by(i, j, c)$} is stored in the array element \poly{$by[c,i,j]$}. This command generates the following map in layer III:
 
 \noindent
 \poly{$\{by(1, i0 (gpuB), j0 (gpuB), i1 (gpuT), j1 (gpuT), c)\rightarrow by[c,i0*32+i1,j0*32+j1]: i0=floor(i, 32) \wedge j0=floor(j, 32) \wedge i1=i\%32 \wedge j1=j\%32 \wedge 0\leq i<N-2 \wedge 0\leq j<M-2 \wedge 0\leq c<3\}$}
