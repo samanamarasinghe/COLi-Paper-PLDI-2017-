@@ -1,88 +1,80 @@
+\vspace{-0.25cm}
+\section{Compiling the \framework{} IR Layers}
 
-\section{Generating Code for Different Platforms}
+Since the main contribution of this paper is not in introducing new techniques for code generation, we only provide a high level overview of how \framework{} generates the IR layers and target code.  Throughout the section, we refer the reader to the necessary literature related to code generation for more details.
 
-Generating code from Layer III (an ordered set of computations) amounts to generating nested loops (AST) that visit each computation in the set, once and only once, while following the lexicographical ordering between integer tuples.
-Array accesses are generated from the maps that describe the data mapping.
-The \framework{} code generator (which uses the ISL~\cite{verdoolaege_isl:_2010} library for code generation) takes Layer III as input and generates an AST as output.  The AST is then traversed to generate lower level code targeting different hardware architectures. 
+In order to generate code, a \framework{} user provides an algorithm and a set of scheduling commands.  Code generation is performed in five phases.  In the first phase, the Layer I representation is created automatically from the algorithm.
+In the second phase, Layer II is generated automatically by applying the schedule to Layer I.  Only scheduling commands that apply loop nest transformations and that tag loop level dimensions for execution on a particular hardware unit are considered to generate Layer II from Layer I.
+Commands for buffer allocation and data-layout mapping are considered in the third phase.  These commands augment the Layer II representation; the result constitutes Layer III.  The newly added buffer allocation statements are not yet scheduled.  In the fourth phase, scheduling commands that map buffers to different memory hierarchies (\texttt{tag\_gpu\_global()}, \texttt{tag\_gpu\_shared()}, \texttt{tag\_gpu\_local()} and \texttt{tag\_gpu\_constant()}), those that specify communication (\texttt{host\_to\_device()}, \texttt{device\_to\_host()}, \texttt{copy\_at()}) and synchronization are applied.  All the new operations that are added in this phase and in the previous one are scheduled.  The result of this phase is the Layer IV representation.  In the final phase, an annotated abstract syntax tree (AST) is generated from Layer IV; this AST is traversed to generate the target code.
 
-%While generating the Halide IR we tag loop nodes appropriately if the loop is parallel, vectorized, or should be mapped to a GPU block or a GPU thread.  The modified Halide backends take this Halide IR as input and generates LLVM IR (multicore backend) or Nvidia PTX (GPU backend).  The Halide backend does not perform any optimizations aside from the ones specified by \framework{} and simple dead code elimination and expression simplification.  In addition to the Halide CPU and GPU backend, we added a backend for distributed memory systems (MPI) and used the FROST~\cite{iccdFrost} framework to target FPGA (Vivado HLS).
+
+% through two means: \emph{time-space mapping} and \emph{introducing new statements}.
+
+Generating Layers II, III and IV is done by applying \framework{} scheduling commands.
+In the rest of this section we describe how scheduling commands transform Layers I, II, III and IV.   We also describe how target code is generated from Layer IV.
 
 \vspace{-0.25cm}
-\subsection{Multicore CPU}
+\paragraph{Transforming Layer I into Layer II}
+Transforming Layer I into Layer II is done using two types of scheduling commands: (1) commands for loop nest transformations (such as \texttt{tile()}, \texttt{split()}, \texttt{shift()}, \texttt{interchange()}); and (2) commands for mapping loop levels to hardware (such as \texttt{parallelize()}, \texttt{vectorize()}, \texttt{gpu()}).
 
-When generating code that targets multicore shared memory systems, loop levels that are tagged as space \emph{cpu} dimensions are translated into parallel loops in the generated code, using OpenMP-style parallelism.  Loops that are tagged with the \emph{vec} space dimensions are translated into vectorized loops.  Currently we only support the vectorization of loops that do not contain any control flow.
+These first type of scheduling commands is implemented by applying a map that transforms the iteration domain.  For example, when a tiling command is applied on the \texttt{by} computation in Figure~\ref{fig:algorithm}, it gets translated into the following map:
+
+\centerline{\poly{$\{by(i,j,c) \rightarrow by(i0,j0,i1,j1,c): i0=floor(i/16) \wedge i1=i\%16 \wedge $}}
+\centerline{\polyc{$ j0=floor(j/16) \wedge j1=j\%16 \wedge 0 \leq i<N \wedge 0 \leq j<N\}$}}
+
+This map is then applied on the Layer I representation producing the Layer II representation (presented in the previous section). Composing many transformations is done by composing different maps, since the composition of two affine maps is an affine map.
+
+Once all the first type of commands are applied, the second type of commands adds \processor tags to the layer II dimensions to indicate whether which loop levels should be parallelized, vectorized, mapped to a GPU block, ...
+
+\subsection{Transforming Layer II into Layer III}
+This is done by augmenting Layer II with access relations.  By default, \framework{} uses identity access relations (i.e., access relations that store a computation \texttt{C(i,j)} into a buffer \texttt{C[i,j]}.  If the \texttt{store\_in()} commands is used, the access relation is deduced from that command instead.  Buffer allocations are also done while transforming Layer II into Layer III. The scheduling command \texttt{b.allocate\_at(C, i)} create a new statement that allocates the buffer \texttt{b} in the same loop nest of the computation \texttt{C} but at the loop level \texttt{i}.
+The iteration domain domain of the allocation statement is deduced automatically from the iteration domain of \texttt{C} as follows: in Layer II, the iteration domain of \texttt{C} is already transformed into the time-\processor domain (i.e., C is already scheduled).  The iteration domain of \texttt{b} is equal to the iteration domain of \texttt{C} except that the dimensions after \texttt{i} (inner loop levels) are projected out (i.e., removed).
+
+\subsection{Transforming Layer III into Layer IV}
+Scheduling commands for data communication (send and receive), synchronization and for copying data between global, shared and local memory are all translated into statements.  For example, the \texttt{send()} and \texttt{receive()} commands are translated into function calls that will be translated during code generation into MPI calls.
 
 \vspace{-0.25cm}
-\subsection{GPU}
-For GPU code generation, data copy commands are provided in Layer III of \framework{}.  These commands are translated into the equivalent data copy calls in the lowered code.  Computation dimensions tagged with GPU thread or GPU block tags are translated into the appropriate GPU thread and block IDs in the lowered code.
+\subsection{Code Generation}
 
-\subsection{Distributed Memory Systems}
-\begin{figure}
-\begin{lstlisting}[language=C,escapechar=@]
-// Layer I
-@\color{listingmauve}{\{bx(y,x): 0<=y<rows and 0<=x<cols\}}@ : @\label{line:bx}@
-        (in(y,x) + in(y,x+1) + in(y,x+2))/3);
-@\color{listingmauve}{\{by(y,x): 0<=y<rows and 0<=x<cols}\}@ : @\label{line:by}@
-        (bx(y,x) + bx(y+1,x) + bx(y+2,x))/3);
-// Layer II
-bx.split(y,chunk_sz,y1,y2); by.split(y,chunk_sz,y1,y2); @\label{line:split}@
-// Layer III
-comm_prop blk({BLOCK}), ablk({ASYNC,BLOCK}); @\label{line:comm_prop}@
-send_recv xfer = create_transfer("{(q,y,x): 1<=q<N-1 and 0<=y<2 and 0<=x<cols}","{(q,y,x): 0<=q<N-2 and 0<=y<2 and     0<=x<cols}",q-1,q,ablk,blk,bx(y,x)); @\label{line:bx_comm}@
-bx.distribute(y1); by.distribute(y1); @\label{line:comp_dist}@
-xfer.s->distribute(q); xfer.r->distribute(q); @\label{line:comm_dist}@
-\end{lstlisting}
-\caption{\framework{} pseudocode for a 3x3 distributed blur}
-\label{code:blurxy_dist}
+Generating code from the set of computations in Layer IV amounts to generating nested loops that visit each computation in the set, once and only once, while following the lexicographical ordering between the computations~\cite{Bas04,Iri88,Qui00}. \framework{} relies on an implementation of the Cloog~\cite{Bas04} code generation algorithm provided by the ISL library~\cite{verdoolaege_isl:_2010}. 
+The \framework{} code generator takes Layer IV as input and generates an abstract syntax tree (AST).  The AST is then traversed to generate lower level code targeting specific hardware architectures.
+%In the remaining of this section we provide details about targeting specific architectures from \framework{}.
+
 \vspace{-0.25cm}
-\end{figure}
-\framework{} utilizes MPI to generate code for distributed memory systems. Figure \ref{code:blurxy_dist} shows \framework{} pseudocode for a 3x3 distributed box blur. Lines \ref{line:bx} and \ref{line:by} define the blur computation. This code remains the same regardless of whether we use a shared memory or distributed memory back-end. 
+\subsubsection{Multicore CPU}
 
-For this example, we want to distribute the computation such that each MPI \emph{rank} (process) operates on contiguous rows of the input data. Each rank gets \lstinline{chunk_sz} rows. On line \ref{line:split}, the outer loop is split by \lstinline{chunk_sz}. The resulting inner loop ranges over the rows in the chunk, and the outer loop ranges over the number of MPI ranks we want to use.
+\framework{} generates LLVM for multicore CPUs.  When generating code that targets multicore shared memory systems, loop levels tagged with space \emph{cpu} dimensions are translated into parallel loops in the generated code, using OpenMP-style parallelism.  Loops tagged with the \emph{vec} space dimensions are vectorized.  Currently we only support vectorization of loops that do not contain control flow.
 
-Line \ref{line:comm_prop} and \ref{line:bx_comm} deal with communication. We assume that our image data is already distributed, thus only boundary rows need to be communicated among adjacent ranks. Line \ref{line:comm_prop} defines two communication types, which will be used to select the appropriate MPI function. \lstinline{blk} represents a blocking call, and \lstinline{ablk} represents an asynchronous, blocking call. We use two-sided communication in \framework{}, meaning communication is done with pairs of \emph{send} and \emph{receive} operations. The actual transfer is defined by \lstinline{create_transfer} on line \ref{line:bx_comm}, which takes as input the send and receive iteration domains, the source and destination ranks, the communication types for send and receive, and the access into the producer for the send.
+\vspace{-0.25cm}
+\subsubsection{GPU (CUDA)}
+For GPU code generation, data copy commands and information about where to store buffers (shared, constant, or global memory) are all provided in Layer IV.  \framework{} translates these into the equivalent data copies and buffer allocations in the generated code.  Computation dimensions tagged with GPU thread or GPU block tags are translated into the appropriate GPU thread and block IDs in the lowered code.  The \framework{} code generator can generate coalesced array accesses and can use shared and constant memories. It can also avoid thread divergence by separating full tiles (loop nests with a size that is multiple of the tile size) from partial tile (the remaining part of a loop).
+The final output of the GPU code generator is an optimized CUDA code. For more details about GPU code generation in the polyhedral model please refer to~\cite{pencil_pact,}
+%For GPU code, CUDA source \framework{} generates CUDA source from the AST.
 
-Line \ref{line:comp_dist} tags dimension \lstinline{y1} of \lstinline{bx} and \lstinline{by} as distributed, and line \ref{line:comm_dist} tags dimension \lstinline{q} of the \lstinline{send} and \lstinline{receive} as distributed. During code generation, we postprocess the generated code and convert each distributed loop into a conditional based on the rank of the executing process. For example: 
+
+\subsubsection{Distributed Memory Systems}
+
+\framework{} utilizes MPI to generate code for distributed memory systems.  During code generation, we postprocess the generated code and convert each distributed loop into a conditional based on the rank of the executing process. For example:
+\vspace{-0.15cm}
 \begin{lstlisting}[numbers=none]
 for(q in 1..N-1) {...} // distribute on q
 \end{lstlisting}
+\vspace{-0.15cm}
 becomes:
+\vspace{-0.15cm}
 \begin{lstlisting}[escapechar=@,numbers=none]
 q = get_rank(); if (q@$\geq$1@ and q<N-1) {...}
 \end{lstlisting}
 
-All of the other scheduling commands in \framework{} can be composed with transfers and distributed loops, as long as the composition is semantically correct.  This means we can do everything from basic transformations (e.g. tiling a transfer) to more advanced transformations (e.g. specializing a distributed computation based on rank).
+%\vspace{-0.25cm}
+%\subsection{Checking the Validity of Schedules}
 
-GPU scheduling can also be composed with distribution, allowing programs to execute in either a multi-GPU or heterogeneous CPU-GPU environment. Only a few extra scheduling commands need to be added to distributed \framework{} code to enable the use of GPU. Figure~\ref{code:blurxy_gpu_addition} shows the four additional scheduling commands needed to convert the distributed box blur code in Figure~\ref{code:blurxy_dist} to distributed GPU code. Lines \ref{line:host_to_device} and \ref{line:device_to_host} copy data from the host (CPU) to the device (GPU) and from the device to the host, respectively. Line \ref{line:gpu_thread} tags the computations to run on the GPU. The resulting code can be used to distribute the box blur computation across multiple GPUs that reside on different nodes. As with CPU distribution, we use MPI to control the inter-node communication.
+%To check the validity of transformations, we first compute the dependences of the input program using array data-flow analysis~\cite{feautrier_dataflow_1991}.  The original dependences (order between producers and consumers) represent the semantics of the program.
+%After computing dependences, we check the validity of transformations using violated dependence analysis~\cite{vasilache_violated_2006}: a schedule is valid if it preserves the original semantics of the program (i.e., if it preserves the order between producers and consumers).
 
-\begin{figure}
-\begin{lstlisting}[language=C,escapechar=@]
-input.copy_to_device(); @\label{line:host_to_device}@
-bx.gpu(y2,x); by.gpu(y2,x); @\label{line:gpu_thread}@
-output.copy_to_host(); @\label{line:device_to_host}@
-\end{lstlisting}
-\caption{Additional \framework{} commands needed to generate a 3x3 distributed GPU box blur}
-\label{code:blurxy_gpu_addition}
-\end{figure}
-% The distributed GPU backend utilizes the \framework{} GPU code backend for generating both the GPU code and the communication code between a host node and the GPU device. The distributed backend is leveraged to control distributing the computation and communication across host nodes with MPI. This allowsthe user to switch from the distributed CPU backend to the distributed GPU backend with minimal extra code. 
-% Figure \ref{code:blurxy_gpu_addition} shows the additional commands needed to convert the box blur from distributed CPU to distributed GPU code. 
-% In lines \ref{line:split_y2} and \ref{line:split_x}, we split the loops so we can assign them to GPU blocks and threads in lines \ref{line:gpu_block} and \ref{line:gpu_thread}. The final piece of code on line \ref{line:device_to_host} is needed to insert a transfer for the result of the GPU computation back to the CPU host memory on a node. This would be called in some wrapper code after the pipeline has completed execution. This transfer is handled by the Halide backend.
-% \vspace{-0.25cm}
-\subsection{FPGA}
-\framework{} relies on FROST \cite{iccdFrost} to generate code for FPGAs.
-FROST is a common back-end for the hardware acceleration of DSLs on FPGA. 
-%\framework{} relies on FROST \cite{iccdFrost} to generate code for FPGAs, a common back-end for the hardware acceleration of DSLs on FPGA. 
-It exposes an IR that DSLs can target, as well as a high level scheduling language to express FPGA-specific optimizations.
-%Currently, FROST only supports master/slave communication between the off-chip memory and FPGA.
-%FROST scheduling commands refers to: the computation schedule (e.g. loop pipelining, vectorization), data storage on the FPGA (e.g. array partitioning), and the type of communication with the off-chip memory (FROST currently supports a master/slave communication only).
+\vspace{-0.25cm}
+\subsection{Support for Non-Affine Iteration Spaces\label{nonaffine}}
 
-We integrated FROST within \framework{}, enabling us to target FPGAs.
-%, as well as take advantage of both frameworks scheduling commands.
-%FROST and the DSL compiler are supposed to work in synergy to produce efficient FPGA designs.
-We use \framework{} to perform loop nest transformations that are necessary to prepare the code for lowering to FPGA, while FROST focuses on the actual lowering to the target High-Level Synthesis (HLS) toolchain.  For example, in order to vectorize a loop, \framework{} first splits the loop so that the innermost loop has a fixed number of iterations and then tags that loop for later vectorization by FROST.
-FROST then performs the actual vectorization of both loop and input/output buffers.%while generating the target code.
-
-The output of FROST is a C++ implementation of the input code suitable for HLS tools, like Xilinx Vivado HLS \cite{vivado}.
-%FROST enforces the scheduling commands by means of either IR manipulation or pragma comments for HLS tools.
-Finally, FROST leverages Xilinx SDAccel to synthesize the resulting FPGA design and produce the bitstream file for execution on actual hardware.
+\framework represents non-affine array accesses, non-affine loop bounds, and non-affine conditionals in a way similar to~\citet{Benabderrahmane}.
+For example, a conditional is transformed into a predicate and is attached to the computation.  The list of accesses of the computation is the union of the accesses of the computation in the two branches of the conditional; this is an over-approximation. During code generation, a preprocessing step inserts the conditional back into the generated code.  The efficiency of these techniques was confirmed in the PENCIL compiler~\cite{pencil}. Our experiences in general, as well as the experiments in this paper, show that these approximations do not hamper performance.
 

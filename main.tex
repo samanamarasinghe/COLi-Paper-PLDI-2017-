@@ -1,46 +1,55 @@
-\documentclass[sigconf, review]{acmart}
+%% For double-blind review submission, w/o CCS and ACM Reference (max submission space)
+\documentclass[sigplan,review,anonymous]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
+%% For double-blind review submission, w/ CCS and ACM Reference
+%\documentclass[sigplan,review,anonymous]{acmart}\settopmatter{printfolios=true}
+%% For single-blind review submission, w/o CCS and ACM Reference (max submission space)
+%\documentclass[sigplan,review]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
+%% For single-blind review submission, w/ CCS and ACM Reference
+%\documentclass[sigplan,review]{acmart}\settopmatter{printfolios=true}
+%% For final camera-ready submission, w/ required CCS and ACM Reference
+%\documentclass[sigplan]{acmart}\settopmatter{}
 
-\usepackage{booktabs} % For formal tables
 
+%% Conference information
+%% Supplied to authors by publisher for camera-ready submission;
+%% use defaults for review submission.
+\acmConference[CGO'19]{International Symposium on Code Generation and Optimization}{February 16--20, 2019}{Washington DC, USA}
+\acmYear{2019}
+\acmISBN{} % \acmISBN{978-x-xxxx-xxxx-x/YY/MM}
+\acmDOI{} % \acmDOI{10.1145/nnnnnnn.nnnnnnn}
+\startPage{1}
 
-% Copyright
+%% Copyright information
+%% Supplied to authors (based on authors' rights management selection;
+%% see authors.acm.org) by publisher for camera-ready submission;
+%% use 'none' for review submission.
 \setcopyright{none}
 %\setcopyright{acmcopyright}
 %\setcopyright{acmlicensed}
 %\setcopyright{rightsretained}
-%\setcopyright{usgov}
-%\setcopyright{usgovmixed}
-%\setcopyright{cagov}
-%\setcopyright{cagovmixed}
+%\copyrightyear{2018}           %% If different from \acmYear
 
-
-% TODO (remove the following for camera ready)
-\settopmatter{printacmref=false}
-
-% DOI
-%\acmDOI{10.475/123_4}
-
-% ISBN
-%\acmISBN{123-4567-24-567/08/06}
-
-%Conference
-\acmConference[PACT'18]{ Parallel Architectures and Compilation Techniques}{November 2018}{Limassol, Cyprus}
-\acmYear{2018}
-\copyrightyear{2018}
-
-
-%\acmArticle{4}
-%\acmPrice{15.00}
-
-% These commands are optional
-%\acmBooktitle{Transactions of the ACM Woodstock conference}
-%\editor{Jennifer B. Sartor}
-%\editor{Theo D'Hondt}
-%\editor{Wolfgang De Meuter}
+%% Bibliography style
+\bibliographystyle{ACM-Reference-Format}
+%% Citation style
+%\citestyle{acmauthoryear}  %% For author/year citations
+%\citestyle{acmnumeric}     %% For numeric citations
+%\setcitestyle{nosort}      %% With 'acmnumeric', to disable automatic
+                            %% sorting of references within a single citation;
+                            %% e.g., \cite{Smith99,Carpenter05,Baker12}
+                            %% rendered as [14,5,2] rather than [2,5,14].
+%\setcitesyle{nocompress}   %% With 'acmnumeric', to disable automatic
+                            %% compression of sequential references within a
+                            %% single citation;
+                            %% e.g., \cite{Baker12,Baker14,Baker16}
+                            %% rendered as [2,3,4] rather than [2-4].
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \usepackage{subcaption}
+\usepackage{booktabs}
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{listings}
@@ -55,6 +64,9 @@
 \usepackage{microtype}
 \usepackage{enumitem}
 
+% We should not do this.  It can result in automatic rejection. -- Shoaib
+%\usepackage[font=scriptsize]{caption}
+
 \setlist{leftmargin=5.5mm}
 
 \definecolor{listinggreen}{rgb}{0,0.6,0}
@@ -64,28 +76,27 @@
 \definecolor{listinglightgray}{rgb}{0.8863,0.8863,0.8863}
 
 \newcommand\layeronecolor{blue}
+\newcommand\yes{\color{listinggreen}{\textbf{\tiny Yes}}}
+\newcommand\no{\color{listingkeywordcolor}{\textbf{\tiny No}}}
+\newcommand\limited{\color{listingkeywordcolor}{\textbf{\tiny Limited}}}
 
 \newcommand\TOSAY[1]{{\color{black}\textbf{We Should Say That: }#1}}
 \newcommand\COMMENT[1]{}
 \newcommand\framework{\textsc{Tiramisu}\xspace}
 \newcommand\processor{space\xspace}
 \newcommand\Processor{Space\xspace}
-\newcommand\layerone{abstract computation layer\xspace}
-\newcommand\Layerone{Abstract Computation Layer\xspace}
-\newcommand\layertwo{computation placement layer\xspace}
-\newcommand\Layertwo{Computation Placement Layer\xspace}
-\newcommand\layerthree{concrete computation layer\xspace}
-\newcommand\Layerthree{Concrete Computation Layer\xspace}
-\newcommand\layerfour{new operation placement layer\xspace}
-\newcommand\Layerfour{New Operation Placement Layer\xspace}
+\newcommand\layerone{abstract algorithm\xspace}
+\newcommand\Layerone{Abstract Algorithm\xspace}
+\newcommand\layertwo{computation management\xspace}
+\newcommand\Layertwo{Computation Management\xspace}
+\newcommand\layerthree{data management\xspace}
+\newcommand\Layerthree{Data Management\xspace}
+\newcommand\layerfour{communication management\xspace}
+\newcommand\Layerfour{Communication Management\xspace}
 \newcommand{\pgrammar}[1]{\text{\sf\textless#1\textgreater}}
 
-\newcommand\codeone{(a)\xspace}
-\newcommand\codetwo{(b)\xspace}
-\newcommand\codethree{(c)\xspace}
-\newcommand\codefour{(d)\xspace}
-\newcommand\codefive{(e)\xspace}
-\newcommand\codesix{(f)\xspace}
+\newcommand\codetwo{(a)\xspace}
+\newcommand\codethree{(b)\xspace}
 \newcommand{\lone}[2]{{\color{\listingmauve}{#1}}\textbf{ : }{#2}\xspace}
 \newcommand{\HIDE}[1]{}
 \newcommand\TODO[1]{\mbox{\textcolor{red}{#1}}}
@@ -119,166 +130,166 @@
   title=\lstname                   % show the filename of files included with \lstinputlisting; also try caption instead of title
 }
 
+\setlength\abovedisplayskip{0pt}
+\setlength{\belowdisplayskip}{0pt}
 
 \newcommand{\cL}{{\cal L}}
-
+\newcommand{\polyc}[1]{
+                      {\footnotesize
+                       \newline
+                       \centerline{\color{listingmauve}{#1}}
+                      }
+                     }
+\newcommand{\poly}[1]{
+                      {\footnotesize     
+                       \color{listingmauve}{#1}
+                      }
+                     }
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+\hypersetup{draft}
+
 \begin{document}
-\title{\framework{}: a Code Optimization Framework for   Targeting High Performance Systems}
-%\titlenote{Produces the permission block, and copyright information}
-%\subtitle{Extended Abstract}
-%\subtitlenote{The full version of the author's guide is available as
-%  \texttt{acmart.pdf} document}
+
+%% Title information
+\title{\framework{}: A Code Optimization Framework for High Performance Systems}
+
+%\titlenote{}             %% \titlenote is optional;
+                                        %% can be repeated if necessary;
+                                        %% contents suppressed with 'anonymous'
+%\subtitle{}                     %% \subtitle is optional
+%\subtitlenote{}       %% \subtitlenote is optional;
+                                        %% can be repeated if necessary;
+                                        %% contents suppressed with 'anonymous'
 
 
-%\author{Ben Trovato}
-%\authornote{Dr.~Trovato insisted his name be first.}
-%\orcid{1234-5678-9012}
-%\affiliation{%
-%  \institution{Institute for Clarity in Documentation}
-%  \streetaddress{P.O. Box 1212}
-%  \city{Dublin}
-%  \state{Ohio}
-%  \postcode{43017-6221}
-%}
-%\email{trovato@corporation.com}
+%% Author information
+%% Contents and number of authors suppressed with 'anonymous'.
+%% Each author should be introduced by \author, followed by
+%% \authornote (optional), \orcid (optional), \affiliation, and
+%% \email.
+%% An author may have multiple affiliations and/or emails; repeat the
+%% appropriate command.
+%% Many elements are not rendered, but should be provided for metadata
+%% extraction tools.
 
-%\author{G.K.M. Tobin}
-%\authornote{The secretary disavows any knowledge of this author's actions.}
-%\affiliation{%
-%  \institution{Institute for Clarity in Documentation}
-%  \streetaddress{P.O. Box 1212}
-%  \city{Dublin}
-%  \state{Ohio}
-%  \postcode{43017-6221}
-%}
-%\email{webmaster@marysville-ohio.com}
+\author{Riyadh Baghdadi}
+\affiliation{
+  \institution{MIT}
+}
+\email{baghdadi@mit.edu}
 
-%\author{Lars Th{\o}rv{\"a}ld}
-%\authornote{This author is the
-%  one who did all the really hard work.}
-%\affiliation{%
-%  \institution{The Th{\o}rv{\"a}ld Group}
-%  \streetaddress{1 Th{\o}rv{\"a}ld Circle}
-%  \city{Hekla}
-%  \country{Iceland}}
-%\email{larst@affiliation.org}
+\author{Jessica Ray}
+\affiliation{
+  \institution{MIT}
+}
+\email{jray@mit.edu}
 
-%\author{Valerie B\'eranger}
-%\affiliation{%
-%  \institution{Inria Paris-Rocquencourt}
-%  \city{Rocquencourt}
-%  \country{France}
-%}
-%\author{Aparna Patel}
-%\affiliation{%
-% \institution{Rajiv Gandhi University}
-% \streetaddress{Rono-Hills}
-% \city{Doimukh}
-% \state{Arunachal Pradesh}
-% \country{India}}
-%\author{Huifen Chan}
-%\affiliation{%
-%  \institution{Tsinghua University}
-%  \streetaddress{30 Shuangqing Rd}
-%  \city{Haidian Qu}
-%  \state{Beijing Shi}
-%  \country{China}
-%}
+\author{Malek Ben Romdhane}
+\affiliation{
+  \institution{MIT}
+}
+\email{malek@mit.edu}
 
-%\author{Charles Palmer}
-%\affiliation{%
-%  \institution{Palmer Research Laboratories}
-%  \streetaddress{8600 Datapoint Drive}
-%  \city{San Antonio}
-%  \state{Texas}
-%  \postcode{78229}}
-%\email{cpalmer@prl.com}
+\author{Emanuele Del Sozzo}
+\affiliation{
+  \institution{Politecnico di Milano}
+}
+\email{emanuele.delsozzo@polimi.it}
 
-%\author{John Smith}
-%\affiliation{\institution{The Th{\o}rv{\"a}ld Group}}
-%\email{jsmith@affiliation.org}
+\author{Abdurrahman Akkas}
+\affiliation{
+  \institution{MIT}
+}
+\email{akkas@mit.edu}
 
-%\author{Julius P.~Kumquat}
-%\affiliation{\institution{The Kumquat Consortium}}
-%\email{jpkumquat@consortium.net}
+\author{Yunming Zhang}
+\affiliation{
+  \institution{MIT}
+}
+\email{yunming@mit.edu}
 
-% The default list of authors is too long for headers.
-%\renewcommand{\shortauthors}{B. Trovato et al.}
+\author{Patricia Suriana}
+\affiliation{
+  \institution{Google}
+}
+\email{psuriana@google.com}
+
+\author{Shoaib Kamil}
+\affiliation{
+  \institution{Adobe}
+}
+\email{kamil@adobe.com}
+
+\author{Saman Amarasinghe}
+\affiliation{
+  \institution{MIT}
+}
+\email{saman@mit.edu}
 
 
 \begin{abstract}
-
-High-performance DSL developers work hard to take advantage of modern hardware. The DSL compilers have to build their own complex middle-ends before they can target a common back-end such as LLVM, which only handles single instruction streams with SIMD instructions. We introduce \framework{}, a common middle-end that can generate efficient code for modern processors and accelerators such as multicores, GPUs, FPGAs and distributed clusters.
-\framework{} introduces a novel three-level IR that separates the
-algorithm, how that algorithm is executed, and where intermediate data are stored.  This separation simplifies optimization and makes targeting multiple hardware architectures from the same algorithm easier.  As a result,
-DSL compilers can be made considerably less complex with no loss of performance while immediately targeting multiple hardware or hardware combinations such as distributed nodes with both CPUs and GPUs.  We evaluated \framework by creating a new middle-end for the Halide and Julia compilers.
-We show that \framework{} extends Halide and Julia with many new capabilities including the ability to: express new algorithms (such as recurrent filters and non-rectangular iteration spaces), perform new complex loop nest transformations (such as wavefront parallelization, loop shifting and loop fusion), and generate efficient code for more architectures (such as combinations of distributed clusters, multicores, GPUs and FPGAs).
-Finally, we demonstrate that \framework{} can generate a very efficient code that matches the highly optimized Intel MKL gemm (generalized matrix multiplication) implementation.  We show that \framework{} can generate code that outperforms Intel MKL DNN convolutions and show speedups reaching $4\times$ over the original Halide due to the optimization enabled by \framework{}.
+This paper introduces \framework{}, a polyhedral framework designed to generate highly performing code for multiple platforms such as multicores, GPUs, and distributed machines.
+\framework{} introduces a scheduling language with novel extensions to explicitly manage the complexities that arise when targeting these systems.  The extensions include computation partitioning, explicit communication, synchronization, and mapping buffers to different memory hierarchies.
+\framework{} relies on a flexible representation based on the polyhedral model and explicitly uses a well-defined four-level IR that allows full separation between the algorithms, schedules, data-layouts, and communication.  This separation simplifies targeting multiple hardware architectures from the same algorithm.
+We evaluate \framework{} by writing a set of image processing and stencil benchmarks and compare it with state-of-the-art compilers.  We show that \framework{} matches and outperforms existing compilers on different hardware architectures, including multicore CPUs, GPUs, and distributed machines.
 \end{abstract}
 
-%
-% The code below should be generated by the tool at
-% http://dl.acm.org/ccs.cfm
-% Please copy and paste the code instead of the example below.
-%
+
+%% 2012 ACM Computing Classification System (CSS) concepts
+%% Generate at 'http://dl.acm.org/ccs/ccs.cfm'.
 \begin{CCSXML}
 <ccs2012>
- <concept>
-  <concept_id>10010520.10010553.10010562</concept_id>
-  <concept_desc>Computer systems organization~Embedded systems</concept_desc>
-  <concept_significance>500</concept_significance>
- </concept>
- <concept>
-  <concept_id>10010520.10010575.10010755</concept_id>
-  <concept_desc>Computer systems organization~Redundancy</concept_desc>
-  <concept_significance>300</concept_significance>
- </concept>
- <concept>
-  <concept_id>10010520.10010553.10010554</concept_id>
-  <concept_desc>Computer systems organization~Robotics</concept_desc>
-  <concept_significance>100</concept_significance>
- </concept>
- <concept>
-  <concept_id>10003033.10003083.10003095</concept_id>
-  <concept_desc>Networks~Network reliability</concept_desc>
-  <concept_significance>100</concept_significance>
- </concept>
+<concept>
+<concept_id>10011007.10011006.10011008</concept_id>
+<concept_desc>Software and its engineering~General programming languages</concept_desc>
+<concept_significance>500</concept_significance>
+</concept>
+<concept>
+<concept_id>10003456.10003457.10003521.10003525</concept_id>
+<concept_desc>Social and professional topics~History of programming languages</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
 </ccs2012>
 \end{CCSXML}
 
-% TODO for camera ready.
-%\ccsdesc[500]{Computer systems organization~Embedded systems}
-%\ccsdesc[300]{Computer systems organization~Redundancy}
-%\ccsdesc{Computer systems organization~Robotics}
-%\ccsdesc[100]{Networks~Network reliability}
+\ccsdesc[500]{Software and its engineering~General programming languages}
+\ccsdesc[300]{Social and professional topics~History of programming languages}
+%% End of generated code
 
 
-\keywords{Code Optimization, Generation, Polyhedral Model, CPU, GPU, FPGA, Distributed System, Heterogeneous System}
+\vspace{-0.25cm}
+%\keywords{Code optimization, code generation, polyhedral model, CPU, GPU, distributed System}
 
 
 \maketitle
 
-
-
 \input{tex/intro}
-
-\input{tex/overview}
 
 \input{tex/related}
 
-\input{tex/threelayer}
+\input{tex/overview}
 
-\input{tex/DSLtoTiramisu}
+\input{tex/background}
+
+\input{tex/threelayer}
 
 \input{tex/codegen}
 
 \input{tex/evaluation}
 
+%\input{tex/acknowledgement.tex}
+
 \input{tex/conclusion}
 
-
+%\input{appendix}
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{bibliography}

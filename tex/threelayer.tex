@@ -1,404 +1,91 @@
+\vspace{-0.5cm}
 \section{\label{sec:ir}The \framework{} IR}
+The main goal of \framework{}'s multi-layer intermediate representation is to simplify the implementation of scheduling commands by applying them in a specific order.
+This section illustrates why, and describes the layers of the \framework{} IR.
 
-%\subsection{Example}
+\subsection{Why a Multi-layer IR ?}
 
-%% Challenge of scheduling
-%Figures~\ref{fig:example-ir}-\codetwo{} (Schedule) and ~\ref{fig:example-ir}-\codethree{} (Schedule) show how a simple collection of scheduling commands can map the architecture independent program into different architectural configurations. 
+Most intermediate representations use memory to communicate between program statements.  This creates memory-based dependencies in the program which also means that the data-layout should be chosen before deciding how the code should be scheduled (i.e., how it should be optimized and mapped to hardware).  Optimizing a program for different hardware architectures usually requires modifying the data-layout and eliminating memory-based dependencies since they restrict optimization~\cite{maydan1992data}.  Thus, any data-layout specified before scheduling must be undone to allow more freedom for scheduling, and the code must be adapted to use the data-layout best-suited for the target hardware.
+Applying these data-layout transformations and the elimination of memory-based dependencies is challenging~\cite{gupta1997privatization,autoPrivatPeng,li_array_1992,feautrier_array_1988,midkiff_automatic_2012,maydan_array-data_1993,lefebvre_automatic_1998,Qui00,Darte_contraction_2005}.
 
-%% The MPI+OpenMP+CUDA Challenge
-%Figure~\ref{fig:example-ir}-\codethree{} (left) shows an example where the algorithm is mapped to a GPU cluster using simple scheduling commands and without the need to change the algorithm or to write code in different languages and libraries.
+Another example that makes code generation complicated is mapping buffers to shared and local memory on GPU.  The amount of data that needs to be copied to shared memory and when to perform synchronization all depend on how the code is optimized (for example,  whether the code has two-level tiling or not).  The same applies to deciding about the amount of data to send or receive when generating distributed code.   Therefore, communication management, buffer mapping to memory hierarchies and synchronization should not be done before scheduling.
 
+\framework{} addresses these challenges by using a multi-layer IR that fully separates the architecture-independent algorithm from the schedule, data-layout and communication.
+The top layer representation describes the pure algorithm using producer-consumer relationships without memory locations.
+The second layer specifies the order of the computations, along with which processor computes each value; this layer is suitable for performing a vast number of optimizations without dealing with concrete memory layouts.
+The third layer specifies where to store intermediate data before they are consumed.  The fourth layer adds all the necessary communication and synchronization operations.
+%The multi-layer design makes the algorithm portable and makes it easier to perform each program transformation at the right layer of abstraction.
+%The multi-layer design simplifies the implementation of code transformations in the compiler.  Each program transformation is performed at the right layer of abstraction.
 
-\begin{figure*}[t!]
-    \centering
-    \scriptsize
-    \setlength\tabcolsep{4pt}
-\begin{tabular}{cl|@{}l}
-\multicolumn{3}{c}{\textbf{Constraints:} \boldsymbol{$\ \ \ C_n: 0\leq i < N, \ \ \ \ \ \ C_m: 0\leq j < M, \ \ \ \ C_{m'}: 1\leq j < M-1, \ \ \ \ C_{k}: 0\leq c < 3, \ \ \ \ C_{q}: 0\leq q < NUM\_NODES$}}
-\\\hline
-  &
-    \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ 
-    \textbf{Different Code Optimizations}
-  &
-    \ \ \ \ \ \ \ \ \ \ \ \ \ \  
-    \textbf{\framework representation (Layer I, Layer II and Layer III)}
-\\\hline
+The separation of layers defines a specific order in which optimizations are applied and ensures that compiler passes in a given layer should not worry about modifying or undoing a decision made in an earlier layer.  For example, the phase that specifies the order of computations and where they occur can safely assume that no data-layout transformations are required, greatly simplifying the phase.
+This simple assumption allows \framework{} to avoid the need to rely on a large body of research that focuses on data-layout transformations to allow scheduling~\cite{gupta1997privatization,autoPrivatPeng,li_array_1992,feautrier_array_1988,midkiff_automatic_2012,maydan_array-data_1993,lefebvre_automatic_1998,Qui00,Darte_contraction_2005}.
 
-{\textbf{\normalsize(a)}} &
-\begin{lstlisting}[language=C,escapechar=@]
-// Original unoptimized code
-for (i in 0..N)
-  for (j in 0..M)
-    for (c in 0..3)
-      b1[j][c] = 1.5*img[i][j][c] // brightening @\label{fig:motivating:code1:stmt1}@
-  for (j in 0..M )
-    for (c in 0..2)
-      b2[j][c] = clamp(b1[j][c], 0, 255)@\label{fig:motivating:code1:stmt2}@
-  for (j in 1..M-1)
-    for (c in 0..3)
-      out[i][j][c] = (b2[j-1][c] + b2[j][c] + @\label{fig:motivating:code1:stmt3}@
-                      b2[j+1][c])/3
-\end{lstlisting}
-    &  
-\begin{tabular}{c|l}
-\multirow{12}{1cm}{\textbf{Layer I}}
-    & \\
-    & \\
-    & \\
-    & \\
-    & The constraints $C_n$, $C_m$ and $C_k$ are defined above.\\
-    & {\color{listingmauve}{$\{b_1\ (i, j, c): C_n \wedge C_m \wedge C_k\} $}} \ \ \ :\ \ \ $1.5*img(i, j, c)$\\
-    & {\color{listingmauve}{$\{b_2\ (i, j, c): C_n \wedge C_m  \wedge C_k\}$}} \ \ \ :\ \ \ $\ clamp(b_1(i, j, c), 0, 255)$ \\
-    & {\color{listingmauve}{$\{out(i, j, c): C_n \wedge C_{m'} \wedge C_k\}$}} \ :\  \ \ $(b_2(i,j-1,c)+b_2(i,j,c)+b_2(i,j+1,c))/3$\\
-    & \\
-    & \\
-    & \\
-    & \\
-\end{tabular}
-    \\\hline
-{\textbf{\normalsize(b)}} &
-\begin{lstlisting}[language=C,escapechar=@]
-// Code optimized for CPU
-@{\color{listingkeywordcolor}{\textbf{parallel}}}@ for (i in 0..N)
-  for (j in 0..M)
-    for (c in 0..3)
-      float t = 1.5*img[i][j][c]@\label{fig:motivating:code2:stmt1}@
-      b2[i][j][c] = clamp(t, 0, 255)@\label{fig:motivating:code2:stmt2}@
-  for (j in 1..M-1)
-    for (c in 0..3)
-      out[i][j][c] = (b2[i][j-1][c] + 
-                      b2[i][j][c] +@\label{fig:motivating:code2:stmt3}@
-                      b2[i][j+1][c])/3
-\end{lstlisting}
-    & 
-\begin{tabular}{c|l}
- \multirow{3}{*}{\textbf{Schedule}}
- & $b_2$.after($b_1$, c)\\
- & $b_1$.parallel(i); \ \ $b_2$.parallel(i); \ \  $out$.parallel(i)\\
- & $b_1$.store\_in($t$); \ \ $b_2$.store\_in($buf_{b2}[i, j , c]$); \ \  $out$.store\_in($buf_{out}[i, j , c]$);\\
- \hline
- \multirow{6}{*}{\textbf{Layer II}}
-    & {\color{listinggreen}{// Layer II generated from Layer I using the schedule}}\\
-    & \\
-    & {\color{listingmauve}{$\{\ b_1(i (cpu), 0, j, c, 0) : C_n \wedge C_m \wedge C_k\}$}}: $1.5*img(i, j, c)$\\
-    & {\color{listingmauve}{$\{\ b_2(i (cpu), 0, j, c, 1): C_n \wedge C_m \wedge C_k\}$}} : $clamp(b_1(i, 0, j, c, 0), 0, 255)$\\
-    & {\color{listingmauve}{$\{out(i (cpu), 1, j, c, 0): C_n\wedge C_{m'} \wedge C_k \}$}}:\\
-    &$  (b_2(i,0,j-1,c,1)+b_2(i,0,j,c,1)+b_2(i,0,j+1,c,1))/3$\\\hline
- \multirow{5}{*}{\textbf{Layer III}}
-    & {\color{listinggreen}{Layer III = Layer II representation + the following data \ mapping}}\\
-    & \\
-    & $\{b_1\ (i (cpu), 0, j, c, 0) \rightarrow t: C_n \wedge C_m \wedge C_k\}$\\
-    & $\{b_2\ (i (cpu), 0, j, c, 1) \rightarrow buf_{b2}[i,j,c]: C_n \wedge C_m \wedge C_k\}$\\
-    & $\{out(i (cpu), 1, j, c, 0) \rightarrow buf_{out}[i,j,c]: C_n \wedge C_{m'} \wedge C_k\}$\\\hline
-\end{tabular}  
-    \\\hline
-    {\textbf{\normalsize(c)}} &
-\begin{lstlisting}[language=C,escapechar=@]
-// Code optimized for multi-GPU
-@{\color{listingkeywordcolor}{\textbf{distributed}}}@ for (q in 0..NUM_NODES)
-  @{\color{listingkeywordcolor}{\textbf{gpu}}}@ for (i in 0..N/NUM_NODES)
-    @{\color{listingkeywordcolor}{\textbf{gpu}}}@ for (j in 0..M)
-     for (c in 0..3)
-       float t = 1.5*img[i][j][c]@\label{fig:motivating:code2:stmt1}@
-       b2[c][i][j] = clamp(t, 0, 255)@\label{fig:motivating:code2:stmt2}@
-@{\color{listingkeywordcolor}{\textbf{distributed}}}@ for (q in 0..NUM_NODES)       
-  @{\color{listingkeywordcolor}{\textbf{gpu}}}@ for (i in 0..N/NUM_NODES)
-    @{\color{listingkeywordcolor}{\textbf{gpu}}}@ for (j in 1..M-1)
-      for (c in 0..3)
-        out[i][j][c] = (b2[c][i][j-1] +
-                        b2[c][i][j] +@\label{fig:motivating:code2:stmt3}@
-                        b2[c][i][j+1])/3
-\end{lstlisting}
-    & 
-\begin{tabular}{c|l}
- \multirow{6}{*}{\textbf{Schedule}}
- & $b_2$.after($b_1$, c);   $out$.after($b_2$, root);\\
- & $b_1$.split(i, N/NUM\_NODES, q, i);   $b_2$.split(i, N/NUM\_NODES, q, i); \\ 
- & $out$.split(i, N/NUM\_NODES, q, i); \\
- & $b_1$.store\_in($t$); \ \ $b_2$.store\_in($buf_{b2}[c, i, j]$); \ \  $out$.store\_in($buf_{out}[i, j, c]$);\\
- & $b_1$.gpu(i,j); \ \ $b_2$.gpu(i,j); \ \  $out$.gpu(i,j)\\
- & $b_1$.distribute(q); $b_2$.distribute(q); $out$.distribute(q); \\
- \hline
- \multirow{7}{*}{\textbf{Layer II}}
-    & {\color{listinggreen}{// Layer II generated from Layer I using the following schedule}}\\
-    & \\
-    & {\color{listingmauve}{$\{\ b_1(0, q(node), i(gpu), j(gpu), c, 0) : C_q \wedge C_n \wedge C_m \wedge C_k\}$}}: $1.5*img(i, j, c)$\\
-    & {\color{listingmauve}{$\{\ b_2(0, q(node), i(gpu), j(gpu), c, 1): C_q \wedge C_n \wedge C_m \wedge C_k\}$}} : \\
-    & $clamp(b_1(0, q, i, j, c, 0), 0, 255)$\\
-    & {\color{listingmauve}{$\{out(1, q(node), i(gpu), j(gpu), c, 0): C_q \wedge C_n\wedge C_{m'} \wedge C_k \}$}}:\\
-    &$  (b_2(0,q,i,j-1,c,0)+b_2(0,q,i,j,c,1)+b_2(1,q,i,j+1,c,0))/3$\\\hline
- \multirow{5}{*}{\textbf{Layer III}}
-    & {\color{listinggreen}{// Same as Layer III in (b) except the mapping of $b_1$ and $b_2$ should be replaced}} \\
-    & {\color{listinggreen}{with the following}} \\
-    & \\
-    & $\{b_1\ (0, q(node), i(gpu), j(gpu), c, 0) \rightarrow t: C_q \wedge C_n \wedge C_m \wedge C_k\}$\\
-    & $\{b_2\ (0, q(node), i(gpu), j(gpu), c, 1) \rightarrow buf_{b2}[c,i,j]:  C_q \wedge C_n \wedge C_m \wedge C_k\}$\\
-\end{tabular}
-    \\\hline
-    \end{tabular}
-    \caption{Three versions of the motivating example (left) and their equivalent Layer I, II and III representations (right)}
-    \label{fig:example-ir}
-    \vspace{-0.25cm}
-\end{figure*}
+\subsection{Background}
 
+In this section, we provide an overview of two main concepts used in the polyhedral model: \emph{integer sets} and \emph{maps}. These two concepts will be used in later sections to define the different IR layers.
 
-In the following section, we provide more details about the four layers of \framework.
+\emph{Integer sets} are used to represent the iteration domain of code while \emph{maps} are used to represent the memory accesses and to transform iteration domains and memory accesses (apply loop nest and memory access transformations).  More details and formal definitions for these concepts are provided in~\cite{verdoolaege_isl:_2010,pencil_pact,polyhedral}.
 
-\begin{table}
-    \scriptsize
-    \setlength\tabcolsep{1pt}
-    \begin{tabular}{l|l}
-        \hline
-        \multicolumn{2}{c}{\textbf{Commands to transform Layer I into Layer II}} \\
-        \multicolumn{2}{c}{We assume that C and P are computations} \\\hline
-        \textbf{Command} & \textbf{Description} \\\hline
-        \texttt{C.interchange(i, j)} & Interchange the dimensions of C (loop interchange) \\\hline
-        \texttt{C.shift(i, s)} & Loop shifting (shift the dimension i by s iterations) \\ \hline
-        \texttt{C.split(i, s, i0, i1)} & Split the dimension i by s. (i0, i1) are the new dimensions\\ \hline
-        \begin{tabular}{ll} \texttt{C.tile(}& \texttt{i,j,t1,t2,}\\ & \texttt{i0,j0,i1,j1)}
-        \end{tabular} & 
-        \begin{tabular}{l}
-        Tile the dimensions (i,j) of the computation C by $t1\times t2$.\\
-        The names of the new dimensions are (i0, j0, i1, j1).\end{tabular}\\ \hline
-        \texttt{P.compute}\_at(C, j) & Compute the computation \emph{P} in the loop nest of \emph{C} at loop\\
-        & level j.  This might introduce redundant computations.\\
-        \hline
-        \texttt{C.vectorize(i, v)} & Vectorize the dimension i by a vector size v\\\hline
-        \texttt{C.unroll(i, v)} & Unroll the dimension i by a factor v\\\hline
-        \texttt{C.parallelize(i)} & Mark the dimension i as a space dimension (cpu)\\\hline
-        \texttt{C.distribute(i)} & Mark the dimension i as a space dimension (node)\\\hline
-        \texttt{C.after(B, i)} & Indicate that C should be ordered after B at the loop level i\\
-        &(they have the same order in all the loop levels above i)\\
-        \hline
-        \texttt{C.inline()} & Inline C in all of its consumers\\ \hline
-        \texttt{C.set\_schedule()} & Set the schedule of C, i.e.,a map that transforms Layer I to \\ & Layer II\\\hline
-        \texttt{C.gpu(i0,i1,i2)} & Mark the dimensions i0, i1 and i2 to be executed on the GPU \\\hline
-        \texttt{C.fpga()} & Generate HLS code for the computation C\\\hline
-        \texttt{C.pipeline(i)} & Mark the dimension i to be pipelined (FPGA)\\\hline
-        \multicolumn{2}{c}{} \\
-        \multicolumn{2}{c}{\textbf{Commands to add data mapping to Layer III}} \\\hline
-        \texttt{Buffer b(...)} & Declare a buffer b (size, type, ...) \\\hline
-        \texttt{C.set\_access()} & Set the access relation for the computation C
-        \\\hline
-        \texttt{C.store\_in(buff[i0,..])} & Store the result of the computation $C(i0, ...)$ in buff[i0, ...]
-        \\\hline
-        \texttt{C.auto\_allocate\_map()} & Allocate a buffer for C and map C to it\\ \hline
-        \texttt{C.set\_access()} & Map C to a buffer access\\ \hline
-        \texttt{C.storage\_fold(i, d)} & Contract the dimension i of the buffer associated to C to \\
-        & make its size d \\\hline
-        \texttt{create\_transfer(...)} & Create a pair of send \& receive communication statements \\
-        \hline
-        \texttt{C.partition(b, type)} & Mark the buffer b to be partitioned in a complete, cyclic or \\ & block way (FPGA)\\\hline
-    \end{tabular}
-    \caption{Examples of \framework{} Scheduling Commands}
-    \label{tab:scheduling}
-    \vspace{-0.5cm}
-\end{table}
+An \emph{integer set} is a set of integer tuples described using affine constraints.  An example of a set of integer tuples is \polyc{$\{(1,1); (2,1); (3,1); (1,2); (2,2); (3,2)\}$}
+Instead of listing all tuples in a set, we describe the set using affine constraints over loop iterators and symbolic constants: \polyc{$\{S(i,j): 1 \leq i \leq 3 \wedge 1 \leq j \leq 2\}$} where $i$ and $j$ are the dimensions of tuples in the set.
 
+A \emph{map} is a relation between two integer sets.  For example
+\polyc{$\{S1(i,j) \rightarrow S2(i+2,j+2) : 1 \leq i \leq 3 \wedge 1 \leq j \leq 2\}$}
+is a map between tuples in the set S1 and tuples in the set S2 (e.g. the tuple \poly{$S1(i,j)$} maps to the tuple \poly{$S2(i+2,j+2)$}).
 
+All sets and maps in \framework are implemented using the Integer Set Library (ISL)~\cite{verdoolaege_isl:_2010}. We also use the ISL library notation for sets and maps throughout the paper.
 
+%Polyhedral sets and relations are described using affine (linear) constraints over loop iterators and program parameters (invariants) and are implemented in \framework using ISL~\cite{verdoolaege_isl:_2010}.  We use a combination of classical extensions to the polyhedral model in order to support non-affine iteration spaces; these extensions are sufficient for large classes of programs in practice~\cite{benabderrahmane_polyhedral_2010,pencil}, and in particular to our areas of interest: dense linear algebra and tensor algebra, stencils, image processing and deep neural networks.
 
-The input to \framework{} is the Layer I computations and a set of scheduling and data layout commands.  Layer II is generated by applying the schedule to Layer I.
-Commands for buffer allocation, data layout mapping, and communication (among CPU nodes for example) are then added to the Layer II representation; this result constitutes Layer III. An annotated abstract syntax tree (AST) is then generated from Layer III.  This AST is traversed to generate the target code.
+\subsection{The Multi-Layer IR}
 
-In this section, we describe in detail the three representations used in \framework{}.  We also describe scheduling via  high-level scheduling commands as well as low level scheduling maps. We begin by showing an example.
+\begin{figure}
+ \includegraphics[scale=0.28]{./figures/fista.pdf}
+ \vspace{-0.25cm}
+ \caption{\framework overview}
+ \label{fig:overview}
+ \vspace{-0.5cm}
+\end{figure}
 
+A typical workflow of using \framework is illustrated in Figure~\ref{fig:overview}.  The user writes the first layer of \framework{} (which is the pure algorithm) and then provides a set of scheduling commands.  The first layer of the IR is then transformed to lower layers, and finally \framework{} generates LLVM IR or other appropriate low-level IR.
+\framework{} uses \emph{integer sets} to represent each of the four IR layers and uses \emph{maps} to represent transformations on the iteration domain and data-layout.
+The remainder of this section describes the four layers of the \framework IR.
 
 \vspace{-0.25cm}
-\subsection{An Example in the Four-Layer IR}
-
-We first provide an overview of the concepts of polyhedral sets and maps.  More details and a formal definition of these concepts are provided in the Appendix.
-
-An \emph{integer set} is a set of integer tuples described using affine constraints.  An example of a set of integer tuples is $\{(1,1); (2,1); (3,1); (1,2); (2,2); (3,2)\}$.
-Instead of listing all tuples in a set, we describe the set using affine constraints over loop iterators and symbolic constants: $\{S(i,j): 1 \leq i \leq 3 \wedge 1 \leq j \leq 2\}$ where $i$ and $j$ are the dimensions of the set.
-
-A map is a relation between two integer sets.  For example $\{S1(i,j) \rightarrow S2(i+2,j+2) : 1 \leq i \leq 3 \wedge 1 \leq j \leq 2\}$ is a map between tuples in the set S1 and tuples in the set S2 (e.g. the tuple $S1(i,j)$ maps to tuple $S2(i+2,j+2)$).  We use the Integer Set Library (ISL)~\cite{verdoolaege_isl:_2010} notation for sets and maps.
-
-Figure~\ref{fig:example-ir} shows the code for each optimized implementation discussed in the previous section.
-%along with its three-level IR
-%representation (Layer I, II and III) on the right.
-%A more formal definition of each IR layer and inter-level transformations is presented in Section~\ref{sec:ir}.  
-The original, unoptimized code is shown in Figure~\ref{fig:example-ir}-\codeone{}, with the right side showing the Layer I representation.
-This Layer I representation is the same for all the code variants, as this layer specifies the computation in a high-level form separate from scheduling.   %Porting the code to a new machine does not require changing the algorithm; only the schedule and data mapping need to be changed.
-
-Each line in Layer I of Figure~\ref{fig:example-ir}-\codeone{} (right side in the figure) corresponds to a statement in the algorithm (left side of the figure): for example, the first line of Layer I represents the line~\ref{fig:motivating:code1:stmt1} in Figure~\ref{fig:example-ir}-\codeone{}.
-The first part of that line\footnote{The constraints $C_n$, $C_m$, and $C_k$ have been expanded inline}, which is
-
-\begin{lstlisting}[language=C,escapechar=@,numbers=none]
-        {@$b_1$@(i,j,c): 0<=i<N and 0<=j<M and 0<=c<3}
-\end{lstlisting}
-
-\noindent specifies the iteration domain of the statement, while the second part, $1.5*img(i, j, c)$, is the computed expression.
-%Each computation $b_1(i,j,c)$ calculates the expression $1.5*img(i,j,c)$.
-The iteration domain is the set of tuples $b_1(i,j,c)$ such that $0\leq i < N \wedge 0\leq j < M \wedge 0\leq c < 3$.
-%The set of integer tuples is compactly described by a set of constraints (affine constraints over the loop iterators and symbolic constants).  We use $b_1$ as the collective name of the static producer and $b_1(i,j,c)$ denotes a particular dynamic instance of that producer, referring to the value produced by the $(i,j,c)$ iteration.
-Computations in Layer I are not ordered.  The declaration order does not affect their order of execution, which is specified in Layer II.  
-%The key idea of this level is to define the computations independent of memory locations and intermediate storage, so this level does not say anything about the order of computations or their storage.  For example, the last line in Figure~\ref{fig:example-ir}, defining the computation of $avg$, is the same regardless of which of the optimized implementations in Figures~\ref{fig:motivating:code1}--\ref{fig:motivating:code4} we represent. 
-
-
-%The order imposed by the producer-consumer relationships is not explicitly represented in the IR layers, but it can be easily computed using polyhedral array data flow analysis~\cite{feautrier_dataflow_1991}. Dependence analysis in Layer I is effective because of the absence of aliasing problems given that the IR does not have any notion of pointers and given that every computation is only defined once.
-
-%For example, whether the computations $out(i,j)$ are stored in a contracted array, in a scalar or whether they are duplicated for execution on different CPUs, the consumer does not need to change.  Only the data mapping (in layer III) needs to be modified depending on the data layout chosen.
-
-
-Figure~\ref{fig:example-ir}-\codetwo{} shows the first optimized version of the code.  The schedule on the right side is the set of scheduling and data layout commands that produce this version of the code.  The scheduling commands are presented in Table~\ref{tab:scheduling}.  Layer II is generated automatically by applying these commands to Layer I.
-\framework provides a large set of high-level scheduling and data layout transformation commands. % (38 high level and low level commands). Table~\ref{tab:scheduling} shows examples of these commands.
-The Layer II representation is also shown in Figure~\ref{fig:example-ir}-\codetwo{}.
-Computations in Layer II are ordered based on their lexicographical order\footnote{For example the computation $S0(0, 0, 0)$ is lexicographically before the computation \mbox{$S0(0, 0, 1)$} and the computations $S0(0, i, 0)$ are lexicographically before the computations $S0(1, i, 0)$}.  The set
-
-\begin{lstlisting}[language=C,escapechar=@,numbers=none]
-{@$b_1$@(i (cpu), 0, j, c, 0):  0<=i<N and 0<=j<M and 0<=c<3}
-\end{lstlisting}
-
-\noindent in the example, is an ordered set of computations.
-%Each computation $b_1(i (cpu), 0, j, c, 0)$ is mapped for execution on the $i$th CPU.  
-The tag \emph{(cpu)} for the $i$ dimension indicates that this dimension is a \processor dimension and that each $i$-th iteration is mapped to the $i$-th CPU.  In Layer II, the computation order is controlled by a total ordering of these tuples.
-%Adding the tag \emph{(virtual)} to the \emph{(cpu)} tag would indicate that the CPU to which the computations are mapped is a virtual CPU that will be mapped by the runtime to any physical CPU during execution.
-
-%Layer II is usually generated automatically from Layer I using scheduling commands.  A scheduling commands in \framework gets translated to an affine relation (function) that transforms the iteration domain.  This affine relation also modifies the accesses automatically as necessary.
-
-%To identify the logical order of execution between the computations mapped to the same processor, we project out (remove) the \processor{} dimensions and keep only the time dimensions of the time-processor vector ($[1, 0, j]$ in the previous example); then 
-%The order of execution of computation is defined by their lexicographical order~\footnote{Although the computations have different names, when comparing them we ignore those names and consider that they are all a part of the same time-\processor{} space.}.
-%This is denoted as follows $$[i_1, i_2, \dots, i_k, \dots, i_n] \ll [i_1', i_2', \dots, i_k', \dots, i_n']$$.
-
-%Figure~\ref{} shows how we can represent the order of execution of the statements in Figure~\ref{} and their placement using a \emph{time-\processor } vector.
-
-%  A dimension can be a dynamic dimension (usually a loop iterator or a linear combination of the loop iterators and parameters), and can also be a constant (usually used to specify the order between statements that have the same iteration space but only differ in their order within  the statements, . Iteration variables normally provide sequential execution or can be annotated with a virtual processor, providing parallel execution. 
-
-%Although, all the computations in layer II are a part of the same space, which is the time-\processor space, we use different names for the different computations.  Such names in layer II are a syntactic sugar used for convenience only and are ignored when comparing the lexicographical order of computations.
-
-%The transformation of layer I into layer II can be done automatically using an affine schedule (relation) that maps the computations from the iteration space to the time-\processor space.  It can also be done using a non-affine transformation technique as long as the technique guarantees that the generated layer II satisfies some constraints that we specify in Section~\ref{layer2}.
-
-%In the example, Figures~\ref{fig:example-ir}-\codetwo{} and~\ref{fig:example-ir}-\codethree{} share the same Layer II representation.  They only differ in their Layer III representation.
-
-Layer III in Figure~\ref{fig:example-ir}-\codetwo{}  adds data layout mapping to Layer II, concretizing where each computation is stored (memory buffers and scalars are also declared in this layer).
-%This layer indicates where each computation is stored in memory.  
-In the example, the data mapping
-
-\begin{lstlisting}[language=C,escapechar=@,numbers=none]
-{@$b_2$@(0,i(cpu),j,c,1) @$\rightarrow {buf}_{b2}$@[i,j,c]:
-    0<=i<N and 0<=j<M and 0<=c<3}
-\end{lstlisting}
-
-indicates that the result of the computation $b_2(0, i (cpu), j, c,1)$ is stored in the array element ${buf}_{b2}[i,j,c]$.
-%(in the contracted array $buf_{b1}[N,3]$).
-Data mapping in \framework is an affine relation that maps a computation from Layer II to a buffer element; scalars are single-element buffers.  \framework allows the expression of any data-layout mapping that can be expressed as an affine relation (examples provided in Section~\ref{layer3}).
-For brevity, the declaration of buffers, their types, their allocation (including when and where they are allocated), are all omitted from the example, but such information must be specified for correct code generation.
-
-%Here is another example of data layout mapping: if we want to map the $b_2$ computation to a structure-of-arrays as in Figure~\ref{fig:example-ir}-\codefour{}, it is sufficient to provide the following mapping $\{b_2[1, i (cpu), j, c] \rightarrow {buf}_{b2}[\boldsymbol{c},i,j]:  0\leq i < N \wedge 0\leq j < M \wedge 0\leq c < 3\}$ where the outermost dimension of the array (in bold) is used to represent a tuple index, which is equivalent to a slot in a structure.
-
-%The other codes Figure~\ref{fig:example-ir} shows the three layers that correspond to the code in Figure~\ref{fig:example-ir}-\codefive{}.  Layer I in this figure is identical to Layer I in Figure~\ref{fig:example-3ir-1}.  Layer II expresses three transformations: redundant computations, fusion of loops and shifting.  This layer can be generated automatically using 3 simple high level scheduling commands.  In Layer III, first, we perform array contraction (storage folding) and we map the output computation to the input buffer (\lstinline{img}) to perform inplace computations.
-
-
-
-
-\vspace{-0.25cm}
-%\subsection{The Three-Layers of \framework{}}
-
-\subsection{Layer I: \Layerone}
+\subsubsection{Layer I (\Layerone)}
 \label{layer1}
 
-The first layer defines abstract computations, which are not yet scheduled or mapped to memory.
-%This layer is defined as a set of iteration domains where each iteration domain is composed of a set of computations.
-Each \textit{computation} represents an expression that should be computed.  % that performs operations within a loop, containing other computations and literal constants. A formal definition is provided in Appendix~\ref{appendixlayers}.
-%Non-loop statements have an iteration domain of a single point.
+Layer I of \framework{} specifies the algorithm without specifying the schedule (when and where the computations occur) or how data should be stored in memory (data-layout) or communication. As this level has no notion of data location, values are communicated via explicit producer-consumer relationships.
 
-As an example, the following code
+Let us take the example of the code in Figure~\ref{fig:algorithm} and let us only consider the computation \texttt{by} for simplicity. It is represented in Layer I as follows.
 
 \begin{lstlisting}[language=C,escapechar=@]
-for (i in 0..4)
- for (j in 0..4)
-   if (i < j && i != 2)
-     A[i][j] = cos(i);
+@\poly{$\{by(i, j, c): 0\leq i<N-2 \wedge 0\leq j<M-2 \wedge 0\leq c<3\}$}@:(bx(i,j,c)+bx(i+1,j,c)+bx(i+2,j,c))/3
 \end{lstlisting}
 
-\noindent can be represented in Layer I as
+The first part of this line, which is
+\poly{$\{by(i,j,c): 0\leq i<N-2 \wedge 0\leq j<M-2 \wedge 0\leq c<3\}$}, specifies the iteration domain of the statement, while the second part, $(bx(i,j,c)+bx(i+1,j,c)+bx(i+2,j,c))/3$, is the computed expression.
+The iteration domain is the set of tuples \poly{$by(i,j,c)$} such that \poly{$0\leq i< N-2 \wedge 0\leq j< M-2 \wedge 0\leq c < 3$}.
+Computations in Layer I are not ordered;  declaration order does not affect the order of execution, which is specified in Layer II. 
 
-\begin{lstlisting}[language=C,escapechar=@,numbers=none]
-{A(i,j): 0<=i<4 and 0<=j<4 and i<j and i!= 2}: cos(i)
-\end{lstlisting}
-
-\noindent though it is important to remember that this representation, unlike the pseudocode above, does not necessarily store results to memory locations.
-$A(i,j)$ is the computation, while the constraints over $i$ and $j$ define the iteration domain.  The second part, $cos(i)$, is the computed expression.
-
-Computations in Layer I are in Static Single Assignment (SSA) form~\cite{Cytron:1991:ECS:115372.115320}; each computation is defined only once (we use the $\phi$ operator to deal with branches as in classical SSA).
-
-\paragraph{Reductions and Updates}
-
-Reductions and updates do not fit naturally in the memory-independent model used within \framework{}, and thus we treat them as a special case.  To implement algorithms that perform a reduction or update a variable (a histogram for example), we declare a new computation for each update.  These computations will all be mapped to the same buffer in Layer III.
-% these computations to the same buffer.
-%expand the iteration domain and add a new dimension for versioning.
-For example, a dense matrix multiplication, which has a reduction, is represented in Layer I as follows:
-
-\begin{lstlisting}[language=C,escapechar=@,numbers=none]
-{c0(i,j):  0<=i<N and 0<=j<N}: 0
-{c1(i,j,k): 0<=i<N and 0<=j<N and 1<=k<N}:
-    @$\phi($@c0(i,j), c1(i,j,k-1)) + A(i,k) * B(k,j)
-\end{lstlisting}
-
-% When generating the third layer for the matrix multiplication code, each computation $c(i,j,k)$ should be mapped to the buffer \lstinline{bufc[i,j]}.  This will produce a reduction.
-%When generating Layer III IR from this code, the computations \lstinline{c0(i,j)} and \lstinline{c1(i,j,k)} will be mapped to the same 2-dimensional buffer, producing an update and a reduction.
-
-Since $c1(i,j,k)$ needs to read the results of the computations $c0(i,j)$ and $c1(i,j,k-1)$, we use the $\phi$ node to merge them into one expression $\phi(c0(i,j), c1(i,j,k-1))$ (although the use of $\phi$ nodes in this case can be avoided, in the general case the use of $\phi$ nodes is necessary to support  cases such as the definition of computations within data-dependent conditions).
-
-%$\{c[i,j,k] \rightarrow buf_c[i,j]:  0\leq i < N \wedge 0\leq j < N \wedge 0 \leq k < N \}$
-
-% Since in the Layer I of \framework{} the data layout is not specified and since \framework{} computations can only read values produced by other computations but not directly read arrays from memory, the following natural question arises: how does \framework{} handle input arrays (program inputs).  The solution to this is to wrap any input buffer into a computation.  That is, represent the buffer as a computation in Layer I.  
-
-%\paragraph{Input Arrays}
-
-%The data layout of input arrays also do not fit naturally. Because Layer I does not specify data layout, program inputs are wrapped by a computation in Layer I.  As a result, the rest of the program is made memory-independent.
-
-%Because Layer I does not specify data layout, program inputs are wrapped by a computation in Layer I.
-%As a result, the rest of the program is made memory-independent.  For example, in Figure~\ref{fig:example-ir}-\codeone{}, if the input image \lstinline{img} was not computed in previous stages of the pipeline but was instead passed as an input buffer to the program, it would require a wrapper computation.  Only the computation \lstinline{b1} changes:
-
-%\begin{lstlisting}[language=C,escapechar=@,numbers=none]
-%{wrapper_img(i,j,c): 0<=i<N and 0<=j<M and 0<=c<3}: ()
-%{b1(i,j,c): 0<=i<N and 0<=j<M and 0<=c<3}:
-%    1.5*wrapper_img(i, j, c)
-%\end{lstlisting}
-
-%The other computations do not change.  The appropriate data mapping would be added in Layer III to map the wrapper computation \lstinline{wrapper_img} to the \lstinline{img} buffer.  In the example, the Layer III data mapping of the computation \lstinline{wrapper_img} would be modified as follows:
-
-%\begin{lstlisting}[language=C,escapechar=@,numbers=none]
-%{wrapper_img(i,j,c) -> img[i,j,c]:
-%    0<=i<N and 0<=j<M and 0<=c<3}
-%\end{lstlisting}
-
-
-% The following data mapping should have been added in the third layer
-
-% $\{wrapper1(i,j) \rightarrow buf1[i,j]:  0\leq i < N \wedge 0\leq j < N \}$
-
-% $\{wrapper2(i,j) \rightarrow buf2[i,j]:  0\leq i < N \wedge 0\leq j < N \}$
-
-% \noindent This mapping indicates that an access to the computations $wrapper1(i,j)$ and $wrapper2(i,j)$ should be mapped to an access to the buffer elements \lstinline{buff1(i,j)} and \lstinline{buff2(i,j)}.  This wrapping keeps the first layer memory-independent, and thus simplifies the algorithms that operate on that layer, since all the accesses are accesses to computations only.
-
-%In the classical polyhedral model, extracting the iteration space requires all loop bounds and conditions to be affine with respect to the loop iterators and a fixed set of symbolic constants.  Programs that satisfy this condition are called \emph{static-affine} programs.  In this paper, we use techniques similar to those introduced in~\cite{benabderrahmane_polyhedral_2010,pencil} to support non static-affine iteration spaces.
-
-%Computations in the Layer I representation are typed but for brevity we omit types in our examples in the paper.  \framework{} supports primitive datatypes used in C (e.g. \texttt{int8\_t}, \texttt{float}, \texttt{double}, etc.) and tuples, which are equivalent to structures in C.
-%  In layer III, we allow the array data type in addition of the previous types.
-
-
-\paragraph{Support for Non-Static-Affine Iteration Spaces}
-
-\framework can represent non-static-affine code.  In particular, \framework{} can represent non-static-affine array accesses, \texttt{while} loops, non-static-affine loop bounds, and non-static-affine conditionals.
-\framework treats any non-static-affine conditional in a way similar to~\cite{pencil}: the conditional is represented as a single macro-statement together with its body (i.e. as a statement encapsulating both the control and the body).  \texttt{while} loops and loops with non-static-affine bounds are handled in a way similar to~\cite{Benabderrahmane}.
-
-
-%TODO: talk about non-afine iteration spaces well.
-
-%The framework can represent arbitrary iteration spaces (quasi-affine and non-quasi-affine iteration spaces including while loops, loop nests with non-quasi-affine conditionals, loop nests with non-quasi-affine loop bounds, etc.).  It can also represent all types of data-mapping that can be expressed as quasi-affine relations.
-
-
-
-\vspace{-0.25cm}
-\subsection{Layer II: \Layertwo}
+\subsubsection{Layer II (\Layertwo)}
 \label{layer2}
 
-The \layertwo describes when and where each computation is computed.  Unlike computations in the first layer, computations in this layer are ordered (specifying when) and are assigned to a particular processor (specifying where).  This order is dictated by \textit{\processor dimensions} and \textit{time dimensions}.  \Processor{} dimensions specify on which processor computations should be executed; such dimensions are not relevant for determining the order of execution.  On the other hand,  time dimensions specify the order of execution relative to other computations.  The order of execution of computations is determined by the lexicographical ordering of the dimensions.
-% To distinguish \processor dimensions from time dimensions, we use tags.  Time dimensions are untagged, while \processor dimensions use tags to indicate the type of processor on which the computation is executed; in addition to the processor type, a tag may indicate the processor is virtual, in which case .  \framework{} supports \emph{cpu}, \emph{gpu}, \emph{node} or \emph{vec} processor types.  The \emph{cpu} tag indicates that the computation will be executed on a CPU thread in a shared memory system, the \emph{gpu} tag indicates an execution on a GPU thread, the \emph{node} tag indicates the node on which the computation is executed in a distributed system while the \emph{vec} indicates the vectorization of the dimension.  
-\Processor{} dimensions are distinguished from time dimensions using tags, which consist of a processor type followed by
+Layer II of \framework{} specifies the order of execution of computations and the processor on which they execute.  This layer does not specify how intermediate values are stored in memory; this simplifies optimization passes since these transformations do not need to perform complicated data-layout transformations.  The transformation of Layer I into Layer II is done automatically using scheduling commands.
+
+Figure~\ref{fig:mainexample}-\codetwo{} (right) shows the first optimized version of the code, produced by the set of scheduling and data-layout commands on the left side.
+The corresponding Layer II representation for the \texttt{by} computation is shown below
+
+\noindent
+\poly{$\{ by(1, i0 (gpuB), j0 (gpuB), i1 (gpuT), j1 (gpuT), c): i0=floor(i, 32) \wedge j0=floor(j, 32) \wedge i1=i\%32 \wedge j1=j\%32 \wedge 0\leq i<N-2 \wedge 0\leq j<M-2 \wedge 0\leq c<3\}$} : (bx(i,j,c)+bx(i+1,j,c)+bx(i+2,j,c))/3
+
+Computations in Layer II are ordered based on their lexicographical order\footnote{For example the computation $S0(0, 0, 0)$ is lexicographically before the computation \mbox{$S0(0, 0, 1)$} and the computations $S0(0, i, 0)$ are lexicographically before the computations $S0(1, i, 0)$}.  The set (purple text in the previous example), is an ordered set of computations.
+The tag \emph{gpuB} for the dimension $i0$ and $j0$ indicates that each iteration ($i0,j0$) is mapped to the GPU block ($i0,j0)$. In Layer II, the total ordering of these tuples determines the execution order.
+
+Unlike the first layer, computations in this layer are ordered and assigned to a particular processor (we know when and where they will run).  This order is dictated by \textit{time dimensions} and \textit{\processor dimensions}.  Time dimensions specify the order of execution relative to other computations while \processor{} dimensions specify on which processor each computation executes.
+The ordering of the time dimensions determines the execution order of each computation.
+\Processor{} dimensions only indicate where computations run, and
+are distinguished from time dimensions using tags, which consist of a processor type followed by
 zero or more properties.  Currently, \framework{} supports the following space tags:
 
 {
@@ -411,17 +98,15 @@ zero or more properties.  Currently, \framework{} supports the following space t
         \texttt{cpu} & the dimension runs on a CPU in a shared memory system \\
         %\hline
         \texttt{node} & the dimension maps to nodes in a distributed system \\
-        \texttt{gpu\_thread\_X} & the dimension runs on a gpu thread (dimension X where \\
-        & X=0 for outermost and 2 for innermost).
-        Similar tags are \\
-        & used for blocks.\\
+        \texttt{gpuT} & the dimension maps to a gpu thread dimension. \\
+        \texttt{gpuB} & the dimension maps to a gpu block dimension.\\
     \end{tabular}
 }
 }
 
-Tagging a dimension with a processor type indicates that the dimension should be distributed over processors of that type in a system; for example, tagging a dimension with \emph{cpu} will execute each iteration in that dimension on a separate CPU.
+Tagging a dimension with a processor type indicates that the dimension should be distributed over processors of that type; for example, tagging a dimension with \emph{cpu} will execute each iteration of that loop dimension on a separate CPU.
 
-In addition to processor type, tags can optionally include one of the following dimension properties:
+Other tags that \framework{} supports and that describe how a dimension should be optimized include:
 
 {
 \centering
@@ -434,140 +119,37 @@ In addition to processor type, tags can optionally include one of the following 
         %\hline
         \texttt{unroll} & unroll the dimension\\
         %\hline
-        \texttt{pipeline} & pipeline the dimension (FPGA only)\\
-        %\hline
     \end{tabular}
 }
 }
 
-%\begin{itemize}
-%    \item \emph{virtual}: This property applies on \emph{cpu} and \emph{node} space dimensions.  It indicates that the dimension does not need to be run on a specific \emph{cpu} (\emph{node} respectively).  It can be run by any \emph{cpu} (\emph{node} respectively), using a work-queue mechanism similar to OpenMP dynamic scheduling.
-    %For example, the time-\processor vector (the left part) in
-    %\begin{lstlisting}[language=C,escapechar=@,numbers=none]
-    %{b1(i(cpu),j,0,k):  0<=i<N and 0<=j<M and 0<=k<2}:
-    %    1.5*img(i,j)
-    %\end{lstlisting}
-    %indicates that the computations $b1(i, j, 0, k)$ should be mapped to a thread that runs on the CPU that has $i$ as its ID.  Adding the tag \emph{virtual} indicates that the computation maps to a thread that can run on any CPU of the shared memory multi-processor system.
-%\end{itemize}
+Computations mapped to the same processor are ordered by projecting the computation set onto the time dimensions and comparing their lexicographical order.
 
-%Programmers may specify the schedule directly or use convenience functions described in Section~\ref{sec:scheduling_commands}.
-
-%T
-
-% non-linear parameters
-%In addition to quasi-affine constraints, we allow some cases of non-linear parameters in the layer II set constraints.  In particular, we allow any expression of the loop parameters to be used in the constraints.  For example we allow a constraint such as $i < N/B$ where $N$ and $B$ are both symbolic constants or a constraint such as $i > N + M/N$.  In these cases, the non-linear parameter expression $N/B$ can be replaced by a declaration of a new parameter $p1 = N/B$ at the beginning of the program (or before the loop) and the use of $t1$ in the constraints $i \leq p1$.  For the second example, we represent the constraint as a declaration $p1 = N + M/N$ and a constraint $i > p1$.
-
-%More precisely, the second layer is a union of ordered computation sets.
-%Each computation set is described as follows:
-%$$\{N1[\vec{s}] | f(\vec{s}, \vec{p})\} : g(N2[\vec{s}], N3[\vec{s}], ..., N4[\vec{s}])$$
-
-%\TODO{Fix definition of Layer II, currently it is identical to Layer I}
-
-%\noindent where $N1[\vec{s}]$ is a computation, $g(N2[\vec{s}], N3[\vec{s}], ..., N4[\vec{s}])$ is the expression that the computation computes and $f(\vec{s}, \vec{p})$ is a Presburger formula that evaluates to true, if and only if $\vec{s}$ is an element of $S$ for the given parameters $\vec{p}$.
-
-Computations mapped to the same processor are ordered by projecting the computation set onto the time dimensions and comparing their lexicographical order, without considering the name of the computation, since all computations in this layer are in the same time-\processor domain.
-
-% Using a non-affine transformation framework (certain classes of non-affine transformations are possible transformations, a transformation function (a schedule) is defined and used to transform the iteration domain into time-space domain.
-
-%\TODO{Explain an example (of parallelization) (sec. 2)}
-
-\subsection{Layer III: \Layerthree}
+\subsubsection{Layer III (\Layerthree)}
 \label{layer3}
 
-The \layerthree specifies memory locations for storing the computed values.  It consists of the Layer II representation along with allocation/deallocation statements, and a set of \emph{access relations},
-which map computations from Layer II to array elements read or written by those computations.  Scalars are treated as single-element arrays.  %Buffers used for storage are declared and allocated in this layer. 
-For each buffer, an allocation statement is created, specifying the type of the buffer (or scalar) and its size, and is scheduled by being mapped to the time-\processor domain.  Similarly, a deallocation statement is also added.
+Layer III makes the data-layout concrete by specifying where intermediate values are stored.  Any necessary buffer allocations/deallocations are also constructed in this level.  This layer is generated automatically from Layer II by applying the scheduling commands for data mapping.
+
+The \layerthree layer specifies memory locations for storing computed values.  It consists of the Layer II representation along with allocation/deallocation statements, and a set of \emph{access relations},
+which map a computation from Layer II to array elements read or written by that computation.  Scalars are treated as single-element arrays.  %Buffers used for storage are declared and allocated in this layer. 
+For each buffer, an allocation statement is created, specifying the type of the buffer (or scalar) and its size.  Similarly, a deallocation statement is also added.
 
 Possible data mappings in \framework include mapping computations to structures-of-arrays, arrays-of-structures, and contraction of multidimensional arrays into arrays with fewer dimensions or into scalars.  It is also possible to specify more complicated accesses such as the storage of computations $c(i,j)$ into the array elements $c(i\%2,j\%2)$ or into $c(j,i)$.
 
+Layer III adds data-layout mapping to Layer II, concretizing where each computation is stored (declarations of memory buffers and scalars are also introduced in this layer, based on the schedule).
 
-\vspace{-0.25cm}
-\subsection{Generating Layer II and III from Layer I}
+In the example, setting the data access using\\ \texttt{by.store\_in({c,i,j})}\\
+indicates that the result of the computation \poly{$by(i, j, c)$} is stored in the array element \poly{$by[c,i,j]$}. This command generates the following map in layer III
 
-Transforming the first layer into the second layer is usually done using an affine relation called a \emph{scheduling map}. This maps each computation in the first layer into a particular position in time-\processor. Composing many transformations can be done simply by composing different scheduling maps.
+\noindent
+\poly{$\{by(1, i0 (gpuB), j0 (gpuB), i1 (gpuT), j1 (gpuT), c)\rightarrow by[c,i0*32+i1,j0*32+j1]: i0=floor(i, 32) \wedge j0=floor(j, 32) \wedge i1=i\%32 \wedge j1=j\%32 \wedge 0\leq i<N-2 \wedge 0\leq j<M-2 \wedge 0\leq c<3\}$}
 
-\vspace{-0.25cm}
-\subsubsection{Scheduling Maps}
+Data mapping in \framework is an affine relation that maps a computation from Layer II to a buffer element; scalars are single-element buffers.  \framework allows any data-layout mapping that can be expressed as an affine relation.
 
-Affine transformations including loop tiling, skewing, loop fusion, distribution, splitting, reordering, and many others can be expressed as an affine map that maps computations from Layer I into the time-\processor domain in Layer II.
-%As described in Section~\ref{layer2}, this map is called the \emph{schedule}.
-A scheduling map takes as input the iteration domain from Layer I and transforms it into a new set that represents the computation in the time-\processor domain.
-For example, suppose we want to tile the following computation (which is in Layer I) into 16 $\times$ 16 tiles and parallelize the outermost loop:
-\begin{lstlisting}[language=C,escapechar=@,numbers=none]
-{C(i,j): 0<=i<N and 0<=j<N}: A(i,j) + B(i,j)
-\end{lstlisting}
+\subsubsection{Layer IV (\Layerfour)}
+\label{layer4}
 
-To do so, we provide the following scheduling map to \framework:
+Layer IV adds synchronization and communication operations to the representation,  as well as scheduling when statements for buffer allocation/deallocation occur.  This layer is generated automatically from Layer III by applying user-specified commands.
 
-\begin{lstlisting}[language=C,escapechar=@,numbers=none]
-{C(i,j)->C(i1(cpu),j1,i2,j2):i1=floor(i/16)
-and i2=i%16 and j1=floor(j/16) and j2=j%16 and 0<=i<N and 0<=j<N}
-\end{lstlisting}
-
-\noindent %and instruct the \framework framework to automatically generate the Layer II representation.  \framework will apply the previous schedule on $C(i,j)$ set of computations and 
-which will produce the following set in Layer II: %(time-\processor domain):
-
-\begin{lstlisting}[language=C,escapechar=@,numbers=none]
-{C(i1(cpu),j1,i2,j2): i1=floor(i/16) and i2=i%16
-   and j1=floor(j/16) and j2=j%16 and 0<=i<N and 0<=j<N}:
-   A(i1*16+i2, j1*16+j2) * B(i1*16+i2, j1*16+j2)
-\end{lstlisting}
-
-%For convenience, a user can provide a data mapping at Layer I and let \framework transform the data mapping automatically while it is transforming the iteration domain; in this case, the user should provide a data mapping from the iteration domain to buffer elements. %instead of providing a data mapping from the time-\processor{} domain to buffer elements.
-
-% NOTE FROM SHOAIB: I think this is redundant with another subsection
-% Alternatively, the user can provide the following data mapping directly.
-
-% \begin{align*}
-% \{C[ & i_1 (cpu, virtual), j_1, i_2, j_2] \rightarrow \\
-%      & buf_c[i_1*16+i_2, j_1*16+j_2]: i_1=floor(i/16) \\
-%      \wedge & i_2=i\bmod 16 \wedge j_1=floor(j/16) \\
-%      \wedge & j_2=j\bmod 16 \wedge 0\leq i < N \wedge 0\leq j < N \}
-% \end{align*}
-
-
-%The user can alternatively provide the 
-%In the previous example, the user can provide the following data-mapping:
-
-%$\{C(i,j) \rightarrow buf_c[i,j]:  0\leq i \leq N \wedge 0\leq j \leq N \}$
-
-%\noindent and let \framework automatically generate:
-
-%$\{C[i_1 (cpu, virtual), j_1, i_2, j_2] \rightarrow buf_c[i_1*16+i_2, j_1*16+j_2]: i_1=i/16 \wedge i_2=i\bmod 16 \wedge j_1=j/16 \wedge j_2=j\bmod 16 \wedge 0\leq i \leq N \wedge 0\leq j \leq N \}$
-
-%non-linear parameters
-
-%\subsubsection{Generation Using Non-affine Transformations}
-
-%One can transform layer I into layer II using certain non-affine transformations.  We only allow transformations that result in a valid layer II representation (only quasi-affine constraints with expressions of parameters and constants are allowed).  In order to perform the transformation, the user needs to extract an interval based representation of the iteration space: a representation similar to the one used in~\cite{halide_12} where each dimension (iterator) of the iteration space is described using an interval of integers; this representation is less expressive than the polyhedral representation.  We provide two operators: \lstinline{get_lower_bound()} and \lstinline{get_upper_bound()} which take the ID of a dimension in the iteration space in layer I and extract the upper bound and lower bound on such dimension using polyhedral projection.
-%The interval based representation is transformed (for example parametric tiling can be applied on intervals) using a user defined technique.  The original accesses are also transformed by the user defined technique.  Then all the non-linear parameters in the interval bounds are wrapped into new parameters ($N/B$ for example is replaced by a new parameter $p_1$ that is declared in the beginning of the program).  Finally, layer II and layer III are generated.
-
-%Although this technique does not provide any fundamental support for non-affine transformations.  It allows in a very pragmatic way support for a certain number of non-affine transformations such as parametric tiling.
-
-%Non-affine transformations such as parametric tiling can be built on top of the \framework framework in a way similar to~\ref{}.
-
-\vspace{-0.25cm}
-\subsubsection{High Level Scheduling Commands}
-\label{sec:scheduling_commands}
-
-\framework provides a set of predefined scheduling maps for common affine loop nest transformations.
-%The user can simply declare a computation and then use one of the predefined scheduling commands to apply a transformation.  In addition, users can compose these scheduling commands and can define new commands.
-Table~\ref{tab:scheduling}, presented previously, shows examples of \framework{} high-level scheduling commands.  These commands are similar to those in Halide~\cite{halide_12} and ChiLL~\cite{chill}.
-The high-level scheduling commands in \framework provide an easy-to-use interface for advanced loop nest transformations in a composable way, while still enabling advanced users to provide their own low-level scheduling maps to modify the \processor-time  mapping for scheduling not covered by typical compiler transformations. 
-
-%For example, to apply a $16\times16$ tiling, users can simply call the predefined `tile()` function:
-
-%\lstinline{C.tile(i, j, 16, 16, i1, j1, i2, j2)}
-
-%This command will tile the dimensions $i$ and $j$ with a $16\times16$ tile size and will use $i_1$, $j_1$, $i_2$ and $j_2$ as new dimension names after tiling.
-
-%The newly created $i_1$ and $j_2$ dimensions can be parallelized and vectorized by calling \lstinline{C.parallelize(i1)} and \lstinline{C.vectorize(j2, 4)} where 4 is the vector length.  
-
-%Users can also set a custom schedule using the \lstinline{.set_schedule()} command which takes a map from Layer I to Layer II and applies it.
-
-%\TODO{Check the Legality of Optimizations}
-
-\vspace{-0.25cm}
-\subsubsection{Checking the Validity of Schedules}
-
-In order to check the validity of transformations, we first compute the dependences of the input program, then we check the validity of transformations using violated dependence analysis~\cite{vasilache_violated_2006}.% In case of a violated dependence, \framework{} reports an error and aborts code generation.
+In this layer, communication statements (including synchronization) are added and scheduled (i.e., mapped to the time-\processor domain).
+Any allocation or deallocation operation that was added in Layer III is also scheduled in this layer.

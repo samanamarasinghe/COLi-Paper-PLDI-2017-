@@ -1,11 +1,7 @@
-
+\vspace{-0.25cm}
 \section{Conclusion}
 
-In this paper we introduce \framework, a middle-end compiler for domain specific languages that separates the algorithm, the schedule, and the data layout in a four-layer intermediate representation.  \framework supports backend code generation for multicore CPUs, GPUs, FPGAs, and distributed systems, as well as machines that contain any combination of these architectures.
+In this paper we introduce \framework, an optimization framework that features a scheduling language with scheduling commands for targeting multicore CPUs, GPUs, and distributed systems.  A four-layer intermediate representation that separates the algorithm, the schedule, the data layout and the communication is used to implement the proposed scheduling language.
+We evaluate \framework by targeting a variety of backends and demonstrate that it generates code matching and outperforming state-of-the-art frameworks.
 
-\framework is designed so that most DSLs can use high-level scheduling and data mapping constructs to control the lowering from the algorithm to the backend, cross-platform code.  In addition, the underlying representations are accessible to advanced users that wish to implement new optimizations and transformations.
-
-We evaluate \framework by creating a new middle-end for the Halide and Julia compilers, targeting a variety of backends.  We also demonstrate that the transformations made possible by \framework increased performance by up to $4\times$ in Halide and $16\times$ in Julia and demonstrate that \framework{} can generate a very fast code matching one of the most hand optimized kernels (Intel MKL gemm).
-
-% Future work includes support for more DSL compilers and adding a layer of automation on top of the current framework; for example, we want to enable automatic scheduling within \framework.
 \newpage

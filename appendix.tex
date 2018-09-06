@@ -113,27 +113,31 @@ $d_1$ and $d_2$ are the dimensionalities of $\vec{s}$
 and $\vec{o}$, $\vec{p} \in \mathbb{Z}^e$ is a vector of $e$ parameters and $f(\vec{s}, \vec{o}, \vec{p})$ is a Presburger formula that evaluates to true if and only if there is a relation from $\vec{s}$ to $\vec{o}$ in $M$ for the given parameters
 $\vec{p}$.
 
-\section{Three-Layer IR}
-\label{appendixlayers}
-\subsection{Layer I: \Layerone}
+%\section{Three-Layer IR}
+%\label{appendixlayers}
+%\subsection{Layer I: \Layerone}
 
-The first layer is a union of \emph{computation sets} such that each computation set describes one statement in the program. Each computation set is defined as follows:
-$$\{N1(\vec{s}) | f(\vec{s}, \vec{p})\} : g(N2(\vec{s}), N3(\vec{s}), ..., N4(\vec{s}))$$
+%The first layer is a union of \emph{computation sets} such that each computation set describes one statement in the program. Each computation set is defined as follows:
+%$$\{N1(\vec{s}) | f(\vec{s}, \vec{p})\} : g(N2(\vec{s}), N3(\vec{s}), ..., N4(\vec{s}))$$
 
-\noindent where $N1(\vec{s})$ is a computation that has the name $N1$, and where $g(N2(\vec{s}), N3(\vec{s}), ..., N4(\vec{s}))$ is the expression that the computation computes and $f(\vec{s}, \vec{p})$ is a Presburger formula that evaluates to true, if and only if $\vec{s}$ is an element of $S$ for the given parameters $\vec{p}$.
+%\noindent where $N1(\vec{s})$ is a computation that has the name $N1$, and where $g(N2(\vec{s}), N3(\vec{s}), ..., N4(\vec{s}))$ is the expression that the computation computes and $f(\vec{s}, \vec{p})$ is a Presburger formula that evaluates to true, if and only if $\vec{s}$ is an element of $S$ for the given parameters $\vec{p}$.
 
 
-\subsection{Layer II: \Layertwo}
+%\subsection{Layer II: \Layertwo}
 
-The second layer is identical to the first layer except that computations in this layer are ordered based on their lexicographical order.
+%The second layer is identical to the first layer except that computations in this layer are ordered based on their lexicographical order.
 
-\subsection{Layer III: \Layerthree}
-\label{layer3}
+%\subsection{Layer III: \Layerthree}
+%\label{layer3}
 
-The third layer is a union of computation sets and a set of access relations.  The computation sets are identical to the Layer II computation sets except that new allocation/deallocation statements are added.  The set of access relations is described as follows:
-$$\{N1(\vec{s}) \rightarrow B(\vec{o}), (\vec{s}, \vec{o}) \in \mathbb{Z}^{d_1}\times\mathbb{Z}^{d_2} | f(\vec{s}, \vec{o}, \vec{p})\}$$
+%The third layer is a union of computation sets and a set of access relations.  The computation sets are identical to the Layer II computation sets except that new allocation/deallocation statements are added.  The set of access relations is described as follows:
+%$$\{N1(\vec{s}) \rightarrow B(\vec{o}), (\vec{s}, \vec{o}) \in \mathbb{Z}^{d_1}\times\mathbb{Z}^{d_2} | f(\vec{s}, \vec{o}, \vec{p})\}$$
 
-\noindent where $N1(\vec{s})$ is a computation mapped to the buffer element $B[\vec{o}]$ and $f(\vec{s}, \vec{o}, \vec{p})$ is a Presburger formula that evaluates to true if and only if there is a relation from $\vec{s}$ to $\vec{o}$ for the given parameters $\vec{p}$.
+%\noindent where $N1(\vec{s})$ is a computation mapped to the buffer element $B[\vec{o}]$ and $f(\vec{s}, \vec{o}, \vec{p})$ is a Presburger formula that evaluates to true if and only if there is a relation from $\vec{s}$ to $\vec{o}$ for the given parameters $\vec{p}$.
+
+\section{Example}
+
+Figure~\ref{fig:time-processor-vector} provides examples of different optimizations expressed in Layer II.
 
 \begin{figure}
 \small
@@ -202,21 +206,52 @@ for (i in 0..N)
 \label{fig:time-processor-vector}
 \end{figure}
 
-\subsection{Time-Processor Vectors}
+
+%\subsection{Time-Processor Vectors}
 
 % to map an iteration into a \processor and time order.
-The {\it time-\processor vector} in Layer II is a vector indicates the logical time of execution of computations and the processor on which they should be executed.
+%The {\it time-\processor vector} in Layer II is a vector indicates the logical time of execution of computations and the processor on which they should be executed.
 %Computations in Layer II are represented as {\it time-\processor vectors}.
-Each one of those vectors has a name associated to it (the name of the computation). $S1(0,0,0)$, $S2(0,0,1)$, $S1(i,j,0)$ and $S2(i(cpu),j,1)$ are  examples of time-\processor vectors representing computations in Layer II.
-In general, the  time-\processor vector has two types of dimensions: time dimensions and \processor dimensions.
-The time dimensions provide the logical order of execution of the computations while the \processor dimensions indicate on which processor the computations should be executed.
-In the previous example, the first three vectors have time dimensions only, while the last vector has one space dimension.
-We use a tag to indicate that a given dimension is a \processor dimension; this tag indicates mainly the type of processor to which the computations are mapped.%: cpu, gpu, node (for a distributed system), etc.
+%Each one of those vectors has a name associated to it (the name of the computation). $S1(0,0,0)$, $S2(0,0,1)$, $S1(i,j,0)$ and $S2(i(cpu),j,1)$ are  examples of time-\processor vectors representing computations in Layer II.
+%In general, the  time-\processor vector has two types of dimensions: time dimensions and \processor dimensions.
+%The time dimensions provide the logical order of execution of the computations while the \processor dimensions indicate on which processor the computations should be executed.
+%In the previous example, the first three vectors have time dimensions only, while the last vector has one space dimension.
+%We use a tag to indicate that a given dimension is a \processor dimension; this tag indicates mainly the type of processor to which the computations are mapped.%: cpu, gpu, node (for a distributed system), etc.
 
-Assuming that we have two time-\processor vectors we want to know which vector among the two executes first, then all we need to do is to compare the two vectors lexicographically~\footnote{A \emph{time-\processor vector} $(i_1, \dots, i_k, \dots, i_n)$ lexicographically precedes another time-\processor vector $(i_1', \dots, i_k', \dots, i_n')$ if and only if $\exists k \in \mathbb{N}$ such that $i_1 = i_1' \wedge i_2 = i_2' \wedge \dots \wedge i_k < i_k'$}.
-In the example, $S1(0,0,0]$ precedes $S2(0,0,1)$ lexicographically, so $S1(0,0,0)$ is scheduled to be executed before $S2(0,0,1)$.
-The ability to add dimensions and reorder them freely enables the expression of multiple possible mappings from the original iteration space of the computations to complex execution scenarios.
-Figure~\ref{fig:time-processor-vector} provides examples of different optimizations for a simple algorithm and shows the  time-\processor vectors used to express those optimizations.
-Each of the dimensions of the vector can be an indexed variable, distributing the computation over that dimension or a constant providing a lexical ordering between statements. 
-The algorithms will be using a custom intermediate representation within each DSL, however, we use a classical imperative language representation to describe them in this paper.
-A value can be annotated by a processor type, indicating where that computation will be placed, and indicating that dimension will be run in parallel.
+%Assuming that we have two time-\processor vectors we want to know which vector among the two executes first, then all we need to do is to compare the two vectors lexicographically~\footnote{A \emph{time-\processor vector} $(i_1, \dots, i_k, \dots, i_n)$ lexicographically precedes another time-\processor vector $(i_1', \dots, i_k', \dots, i_n')$ if and only if $\exists k \in \mathbb{N}$ such that $i_1 = i_1' \wedge i_2 = i_2' \wedge \dots \wedge i_k < i_k'$}.
+%In the example, $S1(0,0,0]$ precedes $S2(0,0,1)$ lexicographically, so $S1(0,0,0)$ is scheduled to be executed before $S2(0,0,1)$.
+%The ability to add dimensions and reorder them freely enables the expression of multiple possible mappings from the original iteration space of the computations to complex execution scenarios.
+
+%Figure~\ref{fig:time-processor-vector} provides examples of different optimizations for a simple algorithm and shows the  time-\processor vectors used to express those optimizations.
+%Each of the dimensions of the vector can be an indexed variable, distributing the computation over that dimension or a constant providing a lexical ordering between statements. 
+%The algorithms will be using a custom intermediate representation within each DSL, however, we use a classical imperative language representation to describe them in this paper.
+%A value can be annotated by a processor type, indicating where that computation will be placed, and indicating that dimension will be run in parallel.
+
+
+\section{Julia to \framework{}}
+
+\subsection{Transforming Julia to \framework{}}
+
+Julia is a high-level dynamically-typed programming language designed for numerical computing.  
+However, in contrast to Halide, Julia is more general: it supports while loops and recurrent computations and is memory-based (i.e., it uses variables unlike Halide which defines pure functions mostly).
+We extend Julia with a set of scheduling directives and function annotations.  Functions annotated with the \lstinline{@acc} macro are optimized with \framework{}.
+
+\framework{} is designed mainly for optimizing sequences of loop nests and statements manipulating arrays.  The user annotates which julia function should be translated; this function can only contain foor loops and statements manipulating arrays.
+We generate \framework{} from the low-level Julia IR (which is in SSA form) by translating each statement in the Julia IR into a computation in \framework{}.  This Julia low-level IR does not have high level control flow (it only has \lstinline{gotos}); thus we change the compilation flow of Julia to annotate the low-level IR with information about the original control flow of the program.  We use the annotations to recover the control flow and generate the iteration domain of each computation.  Although Julia has another high level IR that has control flow information, we cannot use that IR because it lacks the necessary data type annotations.
+
+We transform the memory-based Julia IR into the producer-consumer \framework{} IR using classical array expansion techniques~\cite{feautrier_array_1988,midkiff_automatic_2012,maydan_array-data_1993}.  The goal here is to extract the data-flow representation of the code.  The user is then free to change the data layout of computations using high level data-layout directives. % The problem of array expansion 
+
+\subsection{Evaluating Julia to \framework}
+
+\begin{figure}
+\centering
+ \includegraphics[width=0.8\columnwidth]{./figures/tiramisu_vs_julia}
+ \caption{Execution Time for \framework and Julia (s)}
+ \label{fig:speedup_julia}
+ \vspace{-0.5cm}
+\end{figure}
+
+We used the following benchmarks to evaluate the integration of \framework within Julia: \texttt{bicg}, a biconjugate gradient method;  \texttt{doitgen}, a multiresolution analysis kernel;  \texttt{mttkrp}, the matricized tensor times Khatri-Rao product; \texttt{covariance}, which performs a covariance computation; and \texttt{gesummv}, which is summed matrix-vector multiplications.
+For a fair comparison, the Julia code was tagged with the \texttt{inbounds} macro to remove any boundary checks on buffer accesses. 
+
+Figure~\ref{fig:speedup_julia} shows the execution time of code generated by Julia-\framework{} compared to Julia without \framework{}.  The speedups of Julia-\framework{} in \texttt{covariance}, \texttt{doitgen}, \texttt{mttkrp} and \texttt{bicg} are mainly due to the improved data locality obtained after tiling using \framework{}, which is not possible in Julia.
