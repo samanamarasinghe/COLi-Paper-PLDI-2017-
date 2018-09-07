@@ -238,7 +238,7 @@
 \begin{abstract}
 This paper introduces \framework{}, a polyhedral framework designed to generate high performance code for multiple platforms including multicores, GPUs, and distributed machines.
 \framework{} introduces a scheduling language with novel extensions to explicitly manage the complexities that arise when targeting these systems.  The extensions include computation partitioning, explicit communication, synchronization, and mapping buffers to different memory hierarchies.
-\framework{} relies on a flexible representation based on the polyhedral model and explicitly uses a well-defined four-level IR that allows full separation between the algorithms, loop transformatins, data-layouts, and communication.  This separation simplifies targeting multiple hardware architectures with the same algorithm.
+\framework{} relies on a flexible representation based on the polyhedral model and explicitly uses a well-defined four-level IR that allows full separation between the algorithms, loop transformations, data-layouts, and communication.  This separation simplifies targeting multiple hardware architectures with the same algorithm.
 We evaluate \framework{} by writing a set of image processing and stencil benchmarks and compare it with state-of-the-art compilers.  We show that \framework{} matches or outperforms existing compilers on different hardware architectures, including multicore CPUs, GPUs, and distributed machines.
 \end{abstract}
 

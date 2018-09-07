@@ -24,11 +24,11 @@ These first type of scheduling commands is implemented by applying a map that tr
 
 This map is then applied on the Layer I representation producing the Layer II representation (presented in the previous section). Composing many transformations is done by composing different maps, since the composition of two affine maps is an affine map.
 
-The second type of commands adds \processor tags to the layer II dimensions to indicate whether which loop levels should be parallelized, vectorized, mapped to a GPU block, ...
+The second type of commands adds \processor tags to the layer II dimensions to indicate which loop levels should be parallelized, vectorized, mapped to a GPU block, ...
 
 \vspace{-0.25cm}
 \paragraph{Transforming Layer II into Layer III}
-This is done by augmenting Layer II with access relations.  By default, \framework{} uses identity access relations (i.e., access relations that store a computation \texttt{C(i,j)} into a buffer \texttt{C[i,j]}.  If the \texttt{store\_in()} commands is used, the access relation is deduced from that command instead.  Buffer allocations are also done while transforming Layer II into Layer III. The scheduling command \texttt{b.allocate\_at(C, i)} create a new statement that allocates the buffer \texttt{b} in the same loop nest of the computation \texttt{C} but at the loop level \texttt{i}.
+This is done by augmenting Layer II with access relations.  By default, \framework{} uses identity access relations (i.e., access relations that store a computation \texttt{C(i,j)} into a buffer \texttt{C[i,j]}).  If the \texttt{store\_in()} commands is used, the access relation is deduced from that command instead.  Buffers are also allocated during transformation of Layer II into Layer III. The scheduling command \texttt{b.allocate\_at(C, i)} create a new statement that allocates the buffer \texttt{b} in the same loop nest of the computation \texttt{C} but at the loop level \texttt{i}.
 The iteration domain domain of the allocation statement is deduced automatically from the iteration domain of \texttt{C} as follows: in Layer II, the iteration domain of \texttt{C} is already transformed into the time-\processor domain (i.e., C is already scheduled).  The iteration domain of \texttt{b} is equal to the iteration domain of \texttt{C} except that the dimensions after \texttt{i} (inner loop levels) are projected out (i.e., removed).
 
 \vspace{-0.25cm}
@@ -45,7 +45,7 @@ The \framework{} code generator takes Layer IV as input and generates an abstrac
 \vspace{-0.25cm}
 \subsubsection{Multicore CPU}
 
-\framework{} generates LLVM for multicore CPUs.  When generating code that targets multicore shared memory systems, loop levels tagged with space \emph{cpu} dimensions are translated into parallel loops in the generated code, using OpenMP-style parallelism.  Loops tagged with the \emph{vec} space dimensions are vectorized.  Currently we only support vectorization of loops that do not contain control flow.
+\framework{} generates LLVM for multicore CPUs.  When generating code that targets multicore shared memory systems, loop levels tagged with space \emph{cpu} dimensions are translated into parallel loops in the generated code, using OpenMP-style parallelism.  Loops tagged with the \emph{vec} space dimensions are vectorized.  Currently, we only support vectorization of loops that do not contain control flow.
 
 \vspace{-0.25cm}
 \subsubsection{GPU (CUDA)}
