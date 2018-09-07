@@ -10,26 +10,26 @@ Commands for buffer allocation and data-layout mapping are considered in the thi
 
 % through two means: \emph{time-space mapping} and \emph{introducing new statements}.
 
-Generating Layers II, III and IV is done by applying \framework{} scheduling commands.
+%Generating Layers II, III and IV is done by applying \framework{} scheduling commands.
 In the rest of this section we describe how scheduling commands transform Layers I, II, III and IV.   We also describe how target code is generated from Layer IV.
 
 \vspace{-0.25cm}
 \paragraph{Transforming Layer I into Layer II}
-Transforming Layer I into Layer II is done using two types of scheduling commands: (1) commands for loop nest transformations (such as \texttt{tile()}, \texttt{split()}, \texttt{shift()}, \texttt{interchange()}); and (2) commands for mapping loop levels to hardware (such as \texttt{parallelize()}, \texttt{vectorize()}, \texttt{gpu()}).
+Transforming Layer I into Layer II is done using two types of scheduling commands: (1) commands for loop nest transformations (such as \texttt{tile()}, \texttt{split()}, \texttt{shift()}, \texttt{interchange()}); and (2) commands for mapping loop levels to hardware (including\\ \texttt{parallelize()}, \texttt{vectorize()}, \texttt{gpu()}).
 
-These first type of scheduling commands is implemented by applying a map that transforms the iteration domain.  For example, when a tiling command is applied on the \texttt{by} computation in Figure~\ref{fig:algorithm}, it gets translated into the following map:
+The first type of scheduling command applies a map that transforms the iteration domain.  For example, when a tiling command is applied on the \texttt{by} computation in Figure~\ref{fig:algorithm}, it gets translated into the following map:
 
 \centerline{\poly{$\{by(i,j,c) \rightarrow by(i0,j0,i1,j1,c): i0=floor(i/16) \wedge i1=i\%16 \wedge $}}
 \centerline{\polyc{$ j0=floor(j/16) \wedge j1=j\%16 \wedge 0 \leq i<N \wedge 0 \leq j<N\}$}}
 
-This map is then applied on the Layer I representation producing the Layer II representation (presented in the previous section). Composing many transformations is done by composing different maps, since the composition of two affine maps is an affine map.
+This map is then applied on the Layer I representation producing the Layer II representation (presented in the previous section). Composing transformations is done by composing different maps, since the composition of two affine maps is an affine map.
 
-The second type of commands adds \processor tags to the layer II dimensions to indicate whether which loop levels should be parallelized, vectorized, mapped to a GPU block, ...
+The second type of command adds \processor tags to dimensions to indicate whether which loop levels should be parallelized, vectorized, mapped to a GPU block, and so on.
 
 \vspace{-0.25cm}
 \paragraph{Transforming Layer II into Layer III}
-This is done by augmenting Layer II with access relations.  By default, \framework{} uses identity access relations (i.e., access relations that store a computation \texttt{C(i,j)} into a buffer \texttt{C[i,j]}.  If the \texttt{store\_in()} commands is used, the access relation is deduced from that command instead.  Buffer allocations are also done while transforming Layer II into Layer III. The scheduling command \texttt{b.allocate\_at(C, i)} create a new statement that allocates the buffer \texttt{b} in the same loop nest of the computation \texttt{C} but at the loop level \texttt{i}.
-The iteration domain domain of the allocation statement is deduced automatically from the iteration domain of \texttt{C} as follows: in Layer II, the iteration domain of \texttt{C} is already transformed into the time-\processor domain (i.e., C is already scheduled).  The iteration domain of \texttt{b} is equal to the iteration domain of \texttt{C} except that the dimensions after \texttt{i} (inner loop levels) are projected out (i.e., removed).
+This is done by augmenting Layer II with access relations.  By default, \framework{} uses identity access relations (i.e., access relations that store a computation \texttt{C(i,j)} into a buffer \texttt{C[i,j]}).  If the \texttt{store\_in()} command is used, the access relation is deduced from that command instead.  Buffer allocations are also added while transforming Layer II into Layer III. The scheduling command \texttt{b.allocate\_at(C, i)} creates a new statement that allocates the buffer \texttt{b} in the same loop nest of the computation \texttt{C} but at the loop level \texttt{i}.
+The iteration domain of the allocation statement is deduced automatically from the iteration domain of \texttt{C} as follows: in Layer II, the iteration domain of \texttt{C} is already transformed into the time-\processor domain.  The iteration domain of \texttt{b} is equal to the iteration domain of \texttt{C} except that the dimensions after \texttt{i} (inner loop levels) are projected out and removed.
 
 \vspace{-0.25cm}
 \paragraph{Transforming Layer III into Layer IV}
@@ -39,7 +39,7 @@ Scheduling commands for data communication (send and receive), synchronization a
 \subsection{Code Generation}
 
 Generating code from the set of computations in Layer IV amounts to generating nested loops that visit each computation in the set, once and only once, while following the lexicographical ordering between the computations~\cite{Bas04,Iri88,Qui00}. \framework{} relies on an implementation of the Cloog~\cite{Bas04} code generation algorithm provided by the ISL library~\cite{verdoolaege_isl:_2010}. 
-The \framework{} code generator takes Layer IV as input and generates an abstract syntax tree (AST).  The AST is then traversed to generate lower level code targeting specific hardware architectures.
+The \framework{} code generator takes Layer IV IR and generates an abstract syntax tree (AST).  The AST is then traversed to generate lower level code for specific hardware architectures.
 %In the remaining of this section we provide details about targeting specific architectures from \framework{}.
 
 \vspace{-0.25cm}
@@ -79,5 +79,5 @@ q = get_rank(); if (q@$\geq$1@ and q<N-1) {...}
 \subsection{Support for Non-Affine Iteration Spaces\label{nonaffine}}
 
 \framework represents non-affine array accesses, non-affine loop bounds, and non-affine conditionals in a way similar to~\citet{Benabderrahmane}.
-For example, a conditional is transformed into a predicate and is attached to the computation.  The list of accesses of the computation is the union of the accesses of the computation in the two branches of the conditional; this is an over-approximation. During code generation, a preprocessing step inserts the conditional back into the generated code.  The efficiency of these techniques was confirmed in the PENCIL compiler~\cite{pencil}. Our experiences in general, as well as the experiments in this paper, show that these approximations do not hamper performance.
+For example, a conditional is transformed into a predicate and attached to the computation.  The list of accesses of the computation is the union of the accesses of the computation in the two branches of the conditional; this is an over-approximation. During code generation, a preprocessing step inserts the conditional back into the generated code.  The efficiency of these techniques was confirmed in the PENCIL compiler~\cite{pencil}. Our experiences in general, as well as the experiments in this paper, show that these approximations do not hamper performance.
 
