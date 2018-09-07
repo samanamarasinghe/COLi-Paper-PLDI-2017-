@@ -47,15 +47,15 @@ All sets and maps in \framework are implemented using the Integer Set Library (I
  \vspace{-0.5cm}
 \end{figure}
 
-A typical workflow of using \framework is illustrated in Figure~\ref{fig:overview}.  The user writes the first layer of \framework{} (which is the pure algorithm) and then provides a set of scheduling commands.  The first layer of the IR is then transformed to lower layers, and finally \framework{} generates LLVM IR or other appropriate low-level IR.
-\framework{} uses \emph{integer sets} to represent each of the four IR layers and uses \emph{maps} to represent transformations on the iteration domain and data-layout.
+A typical workflow for using \framework is illustrated in Figure~\ref{fig:overview}.  The user writes the first layer of \framework{} (which is the pure algorithm) and then provides a set of scheduling commands.  The first layer of the IR is then transformed to lower layers, and finally \framework{} generates LLVM or other appropriate low-level IR.
+\framework{} uses integer sets to represent each of the four IR layers and uses maps to represent transformations on the iteration domain and data-layout.
 The remainder of this section describes the four layers of the \framework IR.
 
 \vspace{-0.25cm}
 \subsubsection{Layer I (\Layerone)}
 \label{layer1}
 
-Layer I of \framework{} specifies the algorithm without specifying the schedule (when and where the computations occur) or how data should be stored in memory (data-layout) or communication. As this level has no notion of data location, values are communicated via explicit producer-consumer relationships.
+Layer I of \framework{} specifies the algorithm without specifying when and where the computations occur or how data should be stored in memory (data-layout) or communication. As this level has no notion of data location, values are communicated via explicit producer-consumer relationships.
 
 Let us take the example of the code in Figure~\ref{fig:algorithm} and let us only consider the computation \texttt{by} for simplicity. It is represented in Layer I as follows.
 
@@ -63,8 +63,9 @@ Let us take the example of the code in Figure~\ref{fig:algorithm} and let us onl
 @\poly{$\{by(i, j, c): 0\leq i<N-2 \wedge 0\leq j<M-2 \wedge 0\leq c<3\}$}@:(bx(i,j,c)+bx(i+1,j,c)+bx(i+2,j,c))/3
 \end{lstlisting}
 
-The first part of this line, which is
-\poly{$\{by(i,j,c): 0\leq i<N-2 \wedge 0\leq j<M-2 \wedge 0\leq c<3\}$}, specifies the iteration domain of the statement, while the second part, $(bx(i,j,c)+bx(i+1,j,c)+bx(i+2,j,c))/3$, is the computed expression.
+The first part of this line, 
+\poly{$\{by(i,j,c): 0\leq i<N-2 \wedge 0\leq j<M-2 \wedge 0\leq c<3\}$}, specifies the iteration domain of the statement, while the second part %, $(bx(i,j,c)+bx(i+1,j,c)+bx(i+2,j,c))/3$,
+is the computed expression.
 The iteration domain is the set of tuples \poly{$by(i,j,c)$} such that \poly{$0\leq i< N-2 \wedge 0\leq j< M-2 \wedge 0\leq c < 3$}.
 Computations in Layer I are not ordered;  declaration order does not affect the order of execution, which is specified in Layer II. 
 
@@ -74,15 +75,16 @@ Computations in Layer I are not ordered;  declaration order does not affect the 
 Layer II of \framework{} specifies the order of execution of computations and the processor on which they execute.  This layer does not specify how intermediate values are stored in memory; this simplifies optimization passes since these transformations do not need to perform complicated data-layout transformations.  The transformation of Layer I into Layer II is done automatically using scheduling commands.
 
 Figure~\ref{fig:mainexample}-\codetwo{} (right) shows the first optimized version of the code, produced by the set of scheduling and data-layout commands on the left side.
-The corresponding Layer II representation for the \texttt{by} computation is shown below
+The corresponding Layer II representation for the \texttt{by} computation is shown below:
 
-\noindent
-\poly{$\{ by(1, i0 (gpuB), j0 (gpuB), i1 (gpuT), j1 (gpuT), c): i0=floor(i, 32) \wedge j0=floor(j, 32) \wedge i1=i\%32 \wedge j1=j\%32 \wedge 0\leq i<N-2 \wedge 0\leq j<M-2 \wedge 0\leq c<3\}$} : (bx(i,j,c)+bx(i+1,j,c)+bx(i+2,j,c))/3
+\begin{lstlisting}[language=C,escapechar=@]
+@\poly{$\{ by(1, i0 (gpuB), j0 (gpuB), i1 (gpuT), j1 (gpuT), c): i0=floor(i, 32) \wedge j0=floor(j, 32) \wedge i1=i\%32 \wedge j1=j\%32 \wedge 0\leq i<N-2 \wedge 0\leq j<M-2 \wedge 0\leq c<3\}$} @: (bx(i,j,c)+bx(i+1,j,c)+bx(i+2,j,c))/3
+\end{lstlisting}
 
 Computations in Layer II are ordered based on their lexicographical order\footnote{For example the computation $S0(0, 0, 0)$ is lexicographically before the computation \mbox{$S0(0, 0, 1)$} and the computations $S0(0, i, 0)$ are lexicographically before the computations $S0(1, i, 0)$}.  The set (purple text in the previous example), is an ordered set of computations.
 The tag \emph{gpuB} for the dimension $i0$ and $j0$ indicates that each iteration ($i0,j0$) is mapped to the GPU block ($i0,j0)$. In Layer II, the total ordering of these tuples determines the execution order.
 
-Unlike the first layer, computations in this layer are ordered and assigned to a particular processor (we know when and where they will run).  This order is dictated by \textit{time dimensions} and \textit{\processor dimensions}.  Time dimensions specify the order of execution relative to other computations while \processor{} dimensions specify on which processor each computation executes.
+Unlike the first layer, computations in this layer are ordered and assigned to a particular processor; we know when and where they will run.  This order is dictated by \textit{time dimensions} and \textit{\processor dimensions}.  Time dimensions specify the order of execution relative to other computations while \processor{} dimensions specify on which processor each computation executes.
 The ordering of the time dimensions determines the execution order of each computation.
 \Processor{} dimensions only indicate where computations run, and
 are distinguished from time dimensions using tags, which consist of a processor type followed by
@@ -104,9 +106,9 @@ zero or more properties.  Currently, \framework{} supports the following space t
 }
 }
 
-Tagging a dimension with a processor type indicates that the dimension should be distributed over processors of that type; for example, tagging a dimension with \emph{cpu} will execute each iteration of that loop dimension on a separate CPU.
+Tagging a dimension with a processor type indicates that the dimension will be distributed over processors of that type; for example, tagging a dimension with \emph{cpu} will execute each iteration of that loop dimension on a separate CPU.
 
-Other tags that \framework{} supports and that describe how a dimension should be optimized include:
+Other tags that optimize a dimension include:
 
 {
 \centering
@@ -132,24 +134,24 @@ Layer III makes the data-layout concrete by specifying where intermediate values
 
 The \layerthree layer specifies memory locations for storing computed values.  It consists of the Layer II representation along with allocation/deallocation statements, and a set of \emph{access relations},
 which map a computation from Layer II to array elements read or written by that computation.  Scalars are treated as single-element arrays.  %Buffers used for storage are declared and allocated in this layer. 
-For each buffer, an allocation statement is created, specifying the type of the buffer (or scalar) and its size.  Similarly, a deallocation statement is also added.
+For each buffer, an allocation statement is created, specifying the type of the buffer and its size.  Similarly, a deallocation statement is also added.
 
 Possible data mappings in \framework include mapping computations to structures-of-arrays, arrays-of-structures, and contraction of multidimensional arrays into arrays with fewer dimensions or into scalars.  It is also possible to specify more complicated accesses such as the storage of computations $c(i,j)$ into the array elements $c(i\%2,j\%2)$ or into $c(j,i)$.
 
-Layer III adds data-layout mapping to Layer II, concretizing where each computation is stored (declarations of memory buffers and scalars are also introduced in this layer, based on the schedule).
+%Redundant:
+%Layer III adds data-layout mapping to Layer II, concretizing where each computation is stored (declarations of memory buffers and scalars are also introduced in this layer, based on the schedule).
 
-In the example, setting the data access using\\ \texttt{by.store\_in({c,i,j})}\\
+In the example, setting the data access using\\ \texttt{by.store\_in({c,i,j})}
 indicates that the result of the computation \poly{$by(i, j, c)$} is stored in the array element \poly{$by[c,i,j]$}. This command generates the following map in layer III:
 
 \noindent
 \poly{$\{by(1, i0 (gpuB), j0 (gpuB), i1 (gpuT), j1 (gpuT), c)\rightarrow by[c,i0*32+i1,j0*32+j1]: i0=floor(i, 32) \wedge j0=floor(j, 32) \wedge i1=i\%32 \wedge j1=j\%32 \wedge 0\leq i<N-2 \wedge 0\leq j<M-2 \wedge 0\leq c<3\}$}
 
-Data mapping in \framework is an affine relation that maps a computation from Layer II to a buffer element; scalars are single-element buffers.  \framework allows any data-layout mapping that can be expressed as an affine relation.
+Data mapping in \framework is an affine relation that maps a computation from Layer II to a buffer element.  \framework allows any data-layout mapping that can be expressed as an affine relation.
 
 \subsubsection{Layer IV (\Layerfour)}
 \label{layer4}
 
-Layer IV adds synchronization and communication operations to the representation,  as well as scheduling when statements for buffer allocation/deallocation occur.  This layer is generated automatically from Layer III by applying user-specified commands.
-
-In this layer, communication statements (including synchronization) are added and scheduled (i.e., mapped to the time-\processor domain).
-Any allocation or deallocation operation that was added in Layer III is also scheduled in this layer.
+Layer IV adds synchronization and communication operations to the representation, mapping them to the time-\processor doain,  and concretizes when statements for buffer allocation/deallocation occur.  This layer is generated automatically from Layer III by applying user-specified commands.
+%In this layer, communication statements (including synchronization) are added and scheduled (i.e., mapped to the time-\processor domain).
+Any allocation or deallocation operation added in Layer III is also mapped to the time-\processor domain in this layer.
