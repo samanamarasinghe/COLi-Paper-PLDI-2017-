@@ -24,7 +24,7 @@ This simple assumption allows \framework{} to avoid the need to rely on a large 
 
 In this section, we provide an overview of two main concepts used in the polyhedral model: \emph{integer sets} and \emph{maps}. These two concepts will be used in later sections to define the different IR layers.
 
-\emph{Integer sets} are used to represent the iteration domain of code while \emph{maps} are used to represent the memory accesses and to transform iteration domains and memory accesses (apply loop nest and memory access transformations).  More details and formal definitions for these concepts are provided in~\cite{verdoolaege_isl:_2010,pencil_pact,polyhedral}.
+\emph{Integer sets} represent iteration domains while \emph{maps} are used to represent memory accesses and transform iteration domains and memory accesses (apply loop nest and memory access transformations).  More details and formal definitions for these concepts are provided in~\cite{verdoolaege_isl:_2010,pencil_pact,polyhedral}.
 
 An \emph{integer set} is a set of integer tuples described using affine constraints.  An example of a set of integer tuples is \polyc{$\{(1,1); (2,1); (3,1); (1,2); (2,2); (3,2)\}$}
 Instead of listing all tuples in a set, we describe the set using affine constraints over loop iterators and symbolic constants: \polyc{$\{S(i,j): 1 \leq i \leq 3 \wedge 1 \leq j \leq 2\}$} where $i$ and $j$ are the dimensions of tuples in the set.
