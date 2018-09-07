@@ -1,25 +1,25 @@
-\vspace{-0.25cm}
+\vspace*{-0.25cm}
 \section{Related Work\label{related}}
-
+\vspace*{-0.1cm}
 \paragraph{Polyhedral compilers with automatic scheduling.}
 
 Polyhedral compilers such as PENCIL~\cite{pencil,pencil_paper}, Pluto~\cite{bondhugula_practical_2008}, Polly~\cite{polly}, Tensor Comprehensions~\cite{Vasilache2018TensorCF}, and PolyMage~\cite{Mullapudi:2015:PAO:2786763.2694364} are fully automatic.  Some of them are designed for specific domains (such as Tensor Comprehensions and PolyMage), while Pluto, PENCIL, and Polly are more general.
-While such fully automatic compilers provide productivity, they may not always provide the best performance.  This is due to many reasons: first, these compilers do not implement some key optimizations such as array packing~\cite{Goto:2008:AHM:1356052.1356053}, register blocking, data prefetching, and asynchronous communication (which are all supported by \framework{}); second, they do not have a precise cost-model to decide which optimizations are profitable in which context.  For example, the Pluto~\cite{bondhugula_practical_2008} automatic scheduling algorithm (which is used for automatic scheduling in Pluto, PENCIL, Polly, and Tensor Comprehensions) tries to minimize the distance between producer and consumer statements while maximizing outermost parallelism, but it does not consider the data layout, redundant computations, the complexity of the control of the generated code, etc.  The PolyMage compiler uses a custom scheduling algorithm designed for the field of image processing, but such an algorithm does not address all the complexities that arise when targeting GPUs and distributed systems.
+While such fully automatic compilers provide productivity, they may not always obtain the best performance.  This is due to many reasons: first, these compilers do not implement some key optimizations such as array packing~\cite{Goto:2008:AHM:1356052.1356053}, register blocking, data prefetching, and asynchronous communication (which are all supported by \framework{}); second, they do not have a precise cost-model to decide which optimizations are profitable.  For example, the Pluto~\cite{bondhugula_practical_2008} automatic scheduling algorithm (which is used for automatic scheduling in Pluto, PENCIL, Polly, and Tensor Comprehensions) tries to minimize the distance between producer and consumer statements while maximizing outermost parallelism, but it does not consider the data layout, redundant computations, or the complexity of the control of the generated code.  PolyMage uses a custom scheduling algorithm designed for image processing code, but such an algorithm does not address all the complexities that arise when targeting GPUs and distributed systems.
 Instead of fully automatic scheduling, \framework uses a more pragmatic approach and relies on a set of scheduling commands, giving the user full control over scheduling.
 
 % and to map buffers to the right memory hierarchy level; it needs to decide about the correctness of non-affine and data-layout transformations; it needs ; and it needs a sophisticated search technique to search efficiently the very large space of optimizations.  
 
-Polyhedral frameworks proposed by ~\citet{Amarasinghe:1993:COC:173262.155102} and~\citet{6877466} address the problem of code generation for distributed systems. \framework{} makes a different design choice, relying on the user to provide scheduling commands to control choices in the generated code (synchronous/asynchronous communication, the granularity of communication, buffer sizes, when to send and when to receive, explore communication versus re-computation, etc.).
+Polyhedral frameworks proposed by ~\citet{Amarasinghe:1993:COC:173262.155102} and~\citet{6877466} address the problem of code generation for distributed systems. \framework{} makes a different design choice, relying on the user to provide scheduling commands to control choices in the generated code (synchronous/asynchronous communication, the granularity of communication, buffer sizes, when to send and receive, the cost of communication versus re-computation, etc.).
 
-Even though \framework{} focuses on providing a mechanism for code optimization (i.e., it provides scheduling commands for controlling how the program should be optimized), it is still possible to build a framework that provides policy on top of \framework{} (i.e., a framework that automates scheduling).  The separation between mechanism and policy allows users to choose between using automatic scheduling or manual scheduling which provides more flexibility.
+Even though \framework{} focuses on providing mechanisms for code optimization, it is still possible to build a framework that provides policy on top of \framework{} (i.e., a framework that automates scheduling).  This separation provides flexibility, making it possible to plug in different policies depending on user requirements.  %The separation between mechanism and policy allows users to choose between using automatic scheduling or manual scheduling which provides more flexibility.
 
-\vspace{-0.5cm}
+%\vspace*{-0.3cm}
 \paragraph{Polyhedral compilers with a scheduling language.}
-AlphaZ~\cite{yuki2012alphaz}, CHiLL~\cite{chill,Hall2010}, URUK~\cite{Girbal2006}, and Transformation Recipes~\cite{Hall:2009:LTR:2155247.2155251} are polyhedral frameworks and methods that were developed to allow users to express high-level transformations using scheduling commands. 
+AlphaZ~\cite{yuki2012alphaz}, CHiLL~\cite{chill,Hall2010}, URUK~\cite{Girbal2006}, and Transformation Recipes~\cite{Hall:2009:LTR:2155247.2155251} are polyhedral frameworks and methods developed to allow users to express high-level transformations using scheduling commands. 
 Since these frameworks are polyhedral, they can express any affine transformation.
-The scheduling languages of these frameworks do not target distributed architectures though.  All of them also do not target GPUs (except the Transformation Recipes framework).  In comparison with these frameworks, \framework features scheduling commands for partitioning computations for execution on a distributed system, synchronization, distribution of data across nodes, mapping data to specific GPU memory hierarchy levels, and performing array packing.  The first four columns of Table~\ref{tab:related} show a summary of a comparison between \framework{} and three representative polyhedral frameworks (AlphaZ, PENCIL, and Pluto).
+Their scheduling languages do not target distributed architectures, however, nor do they target GPUs (except the Transformation Recipes framework).  In comparison with these frameworks, \framework features scheduling commands for partitioning computations for execution on a distributed system, synchronization, distribution of data across nodes, mapping data to specific GPU memory hierarchy levels, and performing array packing.  The first four columns of Table~\ref{tab:related} show a summary of a comparison between \framework{} and three representative polyhedral frameworks.
 
-\begin{table}[t]
+\begin{table}[tb]
     \scriptsize
     \setlength\tabcolsep{1pt}
     \begin{tabular}{l|l|l|l|l|l}
@@ -64,22 +64,22 @@ The scheduling languages of these frameworks do not target distributed architect
 
 \paragraph{Non-polyhedral compilers with a scheduling language.}
 Halide~\cite{halide_12} is an image processing DSL that has a scheduling language; however, it uses intervals to represent iteration spaces instead of the polyhedral model.  This limits the expressiveness of Halide.
-For example, Halide cannot naturally represent non-rectangular iteration spaces.  This makes certain Halide passes over-approximate non-rectangular iteration spaces which leads to less efficient code generation.  It also makes Halide over-approximate the amounts of data to communicate (send and receive) when generating distributed code.  It also prevents Halide from performing precise bounds inference for non-rectangular iteration spaces, as well as performing many complex affine transformations, such as iteration space skewing, which are all possible in \framework{}.
+For example, Halide cannot naturally represent non-rectangular iteration spaces.  This makes certain Halide passes over-approximate non-rectangular iteration spaces, potentially leading to less efficient code.  It also makes Halide over-approximate the amount of data to communicate (send and receive) when generating distributed code,  and also prevents Halide from performing precise bounds inference for non-rectangular iteration spaces, as well as performing many complex affine transformations, such as iteration space skewing, which are all possible in \framework{}.
 
 Halide does not have dependence analysis and thus it relies on conservative rules to determine whether a schedule is legal; for example, Halide does not allow the fusion of two loops (using the \texttt{compute\_with} command) if the second loop reads a value produced by the first loop.
 While this rule avoids illegal fusion, it prevents fusing many legal common cases which may lead to suboptimal performance.
-Halide also assumes the program has an acyclic dataflow graph in order to simplify checking the legality of scheduling commands. This prevents users from expressing many programs with cyclic dataflow.
+Halide also assumes the program has an acyclic dataflow graph in order to simplify checking the legality of a schedule. This prevents users from expressing many programs with cyclic dataflow.
 It is possible in some cases to work around the above restrictions, but such methods are not general.
 \framework{} avoids over-conservative constraints by relying on dependence analysis to check for the correctness of code transformations, enabling more possible schedules.  Table~\ref{tab:related} shows a comparison between \framework{} and Halide.
 
-Other systems such as POET~\cite{Yi:2007ay} use an XML-based description of code and transformation behavior to parametrize loop transformations.  It uses a purely-syntactic transformation system to tune the loop transformations.  The use of syntactic transformations is less general than the polyhedral model used in \framework.
+Other systems include POET~\cite{Yi:2007ay}, which uses an XML-based description of code and transformation behavior to parametrize loop transformations.  It uses a purely-syntactic transformation system to produce transformed code.  The use of syntactic transformations is less general than the polyhedral model used in \framework.
 
 \paragraph{Non-polyhedral compilers with automatic scheduling.}
 
 Delite \cite{chafi_domain-specific_2011} is a generic
 framework for building DSL compilers using Lightweight Modular Staging (LMS) \cite{lms_staging_10}. It exposes several parallel computation patterns that DSLs can use to express parallelism.
 NOVA~\cite{Collins:2014:NFL:2627373.2627375} and Lift~\cite{Steuwer:2017:LFD:3049832.3049841} are other IRs for DSL compilers.  They are functional languages that rely on a suite of higher-order functions such as map, reduce, and scan to express parallelism.
-Weld~\cite{palkar2017weld} is another IR designed for the area of databases and data analytics and can be used to implement libraries, such as Numpy, and enable optimizations across different library calls.
+Weld~\cite{palkar2017weld} is another IR designed for the area of databases and data analytics and can be used to implement libraries, such as Numpy~\cite{numpy}, and enable optimizations across different library calls.
 \framework{} is complementary to all of these frameworks as \framework{} would allow them to perform and compose a large set of complex affine transformations that are easier to express in the polyhedral model.
 
 %The Cyclops Tensor Framework (CTF)~\cite{solomonik2013cyclops} is a library for performing tensor contractions, primarily in the field of quantum chemistry. CTF automatically decomposes tensors using a communication-optimal tensor contraction algorithm and maps the computations to the underlying architecture. The framework targets distributed architectures, and can provide hybrid execution through the use of MPI and OpenMP.  Unlike \framework{} which is designed to be more general, CTF is designed mainly for tensor contractions.
