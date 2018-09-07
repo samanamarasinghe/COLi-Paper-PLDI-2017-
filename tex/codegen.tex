@@ -45,7 +45,7 @@ The \framework{} code generator takes Layer IV IR and generates an abstract synt
 \vspace{-0.25cm}
 \subsubsection{Multicore CPU}
 
-\framework{} generates LLVM for multicore CPUs.  When generating code that targets multicore shared memory systems, loop levels tagged with space \emph{cpu} dimensions are translated into parallel loops in the generated code, using OpenMP-style parallelism.  Loops tagged with the \emph{vec} space dimensions are vectorized.  Currently we only support vectorization of loops that do not contain control flow.
+\framework{} generates LLVM for multicore CPUs.  When generating code that targets multicore shared memory systems, loop levels tagged with space \emph{cpu} dimensions are translated into parallel loops in the generated code, using OpenMP-style parallelism.  Loops tagged with the \emph{vec} space dimensions are vectorized.  Currently, we only support vectorization of loops that do not contain control flow.
 
 \vspace{-0.25cm}
 \subsubsection{GPU (CUDA)}
